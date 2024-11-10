@@ -1,11 +1,16 @@
+"""
+Pipeline function to generate augmented data for SLM fine-tuning based on user interaction preference
+"""
+
 import polars as pl
 from tqdm import tqdm
 
-from kolosal_backend.app.pipeline.parameter import PersonalizationParameter
-from kolosal_backend.app.pipeline.personalization import generate_conversation_starter, generate_conversations_response, comparison_score, generate_next_conversation
+from kolosal_backend.pipeline.parameter import PersonalizationParameter
+from kolosal_backend.pipeline.personalization import generate_next_conversation
+from kolosal_backend.pipeline.pipeline_components import generate_conversation_starter, generate_conversations_response, comparison_score
 
 
-def personalization_pipeline(instruction: PersonalizationParameter) -> dict:
+def personalization_pipeline(instruction: PersonalizationParameter) -> pl.DataFrame:
     """
     Given an instruction created based on user interaction preference,
     this function generate an augmented dataset of conversation to finetune a SLM to fit the user interaction preference
@@ -25,8 +30,10 @@ def personalization_pipeline(instruction: PersonalizationParameter) -> dict:
     # Loop the conversation n times to generate augmented data
     for i in tqdm(range(instruction.max_conversations)):
         # Step 2 Generate SLM and LLM response
-        slm_responses = generate_conversations_response(llm=instruction.slm_model, chat_histories=temproary_augmented_data["chat_history"].to_list())
-        llm_responses = generate_conversations_response(llm=instruction.llm_model, chat_histories=temproary_augmented_data["chat_history"].to_list())
+        slm_responses = generate_conversations_response(
+            llm=instruction.slm_model, chat_histories=temproary_augmented_data["chat_history"].to_list())
+        llm_responses = generate_conversations_response(
+            llm=instruction.llm_model, chat_histories=temproary_augmented_data["chat_history"].to_list())
 
         temproary_augmented_data = temproary_augmented_data.with_columns(
             pl.Series("slm_response", slm_responses),
@@ -35,18 +42,20 @@ def personalization_pipeline(instruction: PersonalizationParameter) -> dict:
 
         # Step 3 Generate responses score
         scores = comparison_score(llm=instruction.llm_model,
-                                        chat_histories=temproary_augmented_data["chat_history"].to_list(
-                                        ),
-                                        llm_responses=llm_responses,
-                                        slm_responses=slm_responses)
+                                  chat_histories=temproary_augmented_data["chat_history"].to_list(
+                                  ),
+                                  llm_responses=llm_responses,
+                                  slm_responses=slm_responses)
 
         temproary_augmented_data = temproary_augmented_data.with_columns(
             pl.Series("scores", scores)
         )
 
         # Step 4 Generate a followup question based on the chat history
-        slm_questions = generate_next_conversation(llm=instruction.llm_model, chat_histories=temproary_augmented_data["chat_history"].to_list(), responses=slm_responses)
-        llm_questions = generate_next_conversation(llm=instruction.llm_model, chat_histories=temproary_augmented_data["chat_history"].to_list(), responses=llm_responses)
+        slm_questions = generate_next_conversation(
+            llm=instruction.llm_model, chat_histories=temproary_augmented_data["chat_history"].to_list(), responses=slm_responses)
+        llm_questions = generate_next_conversation(
+            llm=instruction.llm_model, chat_histories=temproary_augmented_data["chat_history"].to_list(), responses=llm_responses)
 
         # Step 5 Geneare a new chat history dataset based on the questions asked
         generated_chat_histories = []

@@ -1,32 +1,14 @@
-"""Component of the personalization pipeline function"""
-from typing import List, Dict
+"""Main component of all pipeline functions"""
+from typing import List, Dict, Optional
 
 from distilabel.llms.base import AsyncLLM
 from distilabel.steps.tasks import SelfInstruct, ChatGeneration, QualityScorer
-
-from kolosal_backend.app.prompt_generation.personalization_prompt_generation import NEXT_QUESTION_PROMPT
-
-
-def build_chat_history(chat_history: List[Dict]) -> str:
-    """
-    Asynchronously builds a chat history string from a list of chat entries.
-    Args:
-        chat_history (List[Dict]): A list of dictionaries representing chat entries. 
-                                   Each dictionary should have 'role' and 'content' keys.
-    Returns:
-        str: A string representation of the chat history, with each entry formatted as "role: content".
-    """
-
-    built_chat = ""
-    for entry in chat_history:
-        built_chat += f"{entry['role']}: {entry['content']}\n"
-    return built_chat
 
 
 def generate_conversation_starter(llm: AsyncLLM,
                                   num_instructions: int,
                                   instruction: str,
-                                  system_prompt: str) -> List[Dict[str, str]]:
+                                  system_prompt: Optional[str]) -> List[Dict[str, str]]:
     """
     Generates a list of conversation starters in chat history format using a large language model (LLM).
 
@@ -64,9 +46,10 @@ def generate_conversation_starter(llm: AsyncLLM,
         if not isinstance(conversation_starters, list):
             raise ValueError("The result does not contain valid instructions.")
 
-        # Transform the list of strings into chat history format
-        chat_history = [[{"role": "system", "content": system_prompt}, {
-            "role": "user", "content": starter}] for starter in conversation_starters]
+        # Transform the list of strings into chat history format, ignore system prompt if None
+        chat_history = [[{"role": "user", "content": starter}] if system_prompt is None
+                        else [{"role": "system", "content": system_prompt}, {"role": "user", "content": starter}]
+                        for starter in conversation_starters]
 
         return chat_history
 
@@ -153,30 +136,17 @@ def comparison_score(llm: AsyncLLM,
     return result_scores
 
 
-def generate_next_conversation(llm: AsyncLLM,
-                               chat_histories: List[Dict[str, str]],
-                               responses: str) -> List[Dict[str, str]]:
+def build_chat_history(chat_history: List[Dict]) -> str:
     """
-    Asynchronously generates the next conversation prompts based on chat histories and responses.
+    Builds a chat history string from a list of chat entries.
     Args:
-        llm (AsyncLLM): The language model to use for generating the next conversation.
-        chat_histories (List[Dict[str, str]]): A list of dictionaries containing the chat histories.
-        responses (str): The responses to the chat histories.
+        chat_history (List[Dict]): A list of dictionaries representing chat entries. 
+                                   Each dictionary should have 'role' and 'content' keys.
     Returns:
-        List[Dict[str, str]]: A list of dictionaries containing the next conversation prompts.
+        str: A string representation of the chat history, with each entry formatted as "role: content".
     """
 
-    generator = SelfInstruct(
-        llm=llm,
-        num_instructions=1
-    )
-    generator.load()
-
-    input_data = [{"input": NEXT_QUESTION_PROMPT.format(chat_history=build_chat_history(chat_history),
-                                                        response=response)}
-                  for chat_history, response in zip(chat_histories, responses)]
-
-    result = next(generator.process(input_data))
-    next_questions = [next_question["instructions"][0]
-                      for next_question in result]
-    return next_questions
+    built_chat = ""
+    for entry in chat_history:
+        built_chat += f"{entry['role']}: {entry['content']}\n"
+    return built_chat
