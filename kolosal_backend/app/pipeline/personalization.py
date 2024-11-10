@@ -7,7 +7,7 @@ from distilabel.steps.tasks import SelfInstruct, ChatGeneration, QualityScorer
 from kolosal_backend.app.prompt_generation.personalization_prompt_generation import NEXT_QUESTION_PROMPT
 
 
-async def build_chat_history(chat_history: List[Dict]) -> str:
+def build_chat_history(chat_history: List[Dict]) -> str:
     """
     Asynchronously builds a chat history string from a list of chat entries.
     Args:
@@ -23,10 +23,10 @@ async def build_chat_history(chat_history: List[Dict]) -> str:
     return built_chat
 
 
-async def generate_conversation_starter(llm: AsyncLLM,
-                                        num_instructions: int,
-                                        instruction: str,
-                                        system_prompt: str) -> List[Dict[str, str]]:
+def generate_conversation_starter(llm: AsyncLLM,
+                                  num_instructions: int,
+                                  instruction: str,
+                                  system_prompt: str) -> List[Dict[str, str]]:
     """
     Generates a list of conversation starters in chat history format using a large language model (LLM).
 
@@ -75,9 +75,9 @@ async def generate_conversation_starter(llm: AsyncLLM,
             f"An error occurred while generating conversation starters: {str(e)}") from e
 
 
-async def generate_conversations_response(llm: AsyncLLM,
-                                          chat_histories: List[List[Dict[str, str]]]
-                                          ) -> List[str]:
+def generate_conversations_response(llm: AsyncLLM,
+                                    chat_histories: List[List[Dict[str, str]]]
+                                    ) -> List[str]:
     """
     Generate responses for multiple chat histories using an asynchronous language model.
 
@@ -91,7 +91,7 @@ async def generate_conversations_response(llm: AsyncLLM,
     # Initialize the chat generator with the given language model
     generator = ChatGeneration(llm=llm)
 
-    # Load the generator (ensure this is awaited if it's an async method)
+    # Load the generator
     generator.load()
 
     responses = next(generator.process(
@@ -102,11 +102,11 @@ async def generate_conversations_response(llm: AsyncLLM,
     return responses
 
 
-async def comparison_score(llm: AsyncLLM,
-                           chat_histories: List[List[Dict[str, str]]],
-                           llm_responses: List[str],
-                           slm_responses: List[str]
-                           ) -> List[int]:
+def comparison_score(llm: AsyncLLM,
+                     chat_histories: List[List[Dict[str, str]]],
+                     llm_responses: List[str],
+                     slm_responses: List[str]
+                     ) -> List[int]:
     """
     Asynchronously computes comparison scores between LLM and SLM responses based on chat histories.
     Args:
@@ -153,9 +153,9 @@ async def comparison_score(llm: AsyncLLM,
     return result_scores
 
 
-async def generate_next_conversation(llm: AsyncLLM,
-                                     chat_histories: List[Dict[str, str]],
-                                     responses: str) -> List[Dict[str, str]]:
+def generate_next_conversation(llm: AsyncLLM,
+                               chat_histories: List[Dict[str, str]],
+                               responses: str) -> List[Dict[str, str]]:
     """
     Asynchronously generates the next conversation prompts based on chat histories and responses.
     Args:
@@ -172,7 +172,7 @@ async def generate_next_conversation(llm: AsyncLLM,
     )
     generator.load()
 
-    input_data = [{"input": NEXT_QUESTION_PROMPT.format(chat_history=await build_chat_history(chat_history),
+    input_data = [{"input": NEXT_QUESTION_PROMPT.format(chat_history=build_chat_history(chat_history),
                                                         response=response)}
                   for chat_history, response in zip(chat_histories, responses)]
 
