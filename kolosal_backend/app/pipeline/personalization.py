@@ -1,0 +1,182 @@
+"""Component of the personalization pipeline function"""
+from typing import List, Dict
+
+from distilabel.llms.base import AsyncLLM
+from distilabel.steps.tasks import SelfInstruct, ChatGeneration, QualityScorer
+
+from kolosal_backend.app.prompt_generation.personalization_prompt_generation import NEXT_QUESTION_PROMPT
+
+
+async def build_chat_history(chat_history: List[Dict]) -> str:
+    """
+    Asynchronously builds a chat history string from a list of chat entries.
+    Args:
+        chat_history (List[Dict]): A list of dictionaries representing chat entries. 
+                                   Each dictionary should have 'role' and 'content' keys.
+    Returns:
+        str: A string representation of the chat history, with each entry formatted as "role: content".
+    """
+
+    built_chat = ""
+    for entry in chat_history:
+        built_chat += f"{entry['role']}: {entry['content']}\n"
+    return built_chat
+
+
+async def generate_conversation_starter(llm: AsyncLLM,
+                                        num_instructions: int,
+                                        instruction: str,
+                                        system_prompt: str) -> List[Dict[str, str]]:
+    """
+    Generates a list of conversation starters in chat history format using a large language model (LLM).
+
+    Parameters:
+    - llm (AsyncLLM): An asynchronous instance of a large language model.
+    - num_instructions (int): The number of conversation starter instructions to generate.
+    - instruction (str): A string instruction guiding the conversation starter generation.
+    - system_prompt (str): A string representing the system prompt for the conversation.
+
+    Returns:
+    - List[Dict[str, str]]: A list of dictionaries representing conversation history in the format:
+      [{"role": "user", "content": "<generated conversation starter>"}]
+
+    Raises:
+    - ValueError: If the generated data does not contain the expected 'instructions' field.
+    - RuntimeError: If any error occurs during the loading or processing of the SelfInstruct instance.
+    """
+    try:
+        # Initialize the SelfInstruct instance
+        generator = SelfInstruct(
+            llm=llm,
+            num_instructions=num_instructions
+        )
+
+        # Load necessary resources for the generator
+        generator.load()
+
+        # Process the input and generate conversation starters
+        result = next(generator.process([{"input": instruction}]))
+
+        # Extract the 'instructions' from the result
+        conversation_starters = result[0].get("instructions", [])
+
+        # Ensure the output is a list of instructions
+        if not isinstance(conversation_starters, list):
+            raise ValueError("The result does not contain valid instructions.")
+
+        # Transform the list of strings into chat history format
+        chat_history = [[{"role": "system", "content": system_prompt}, {
+            "role": "user", "content": starter}] for starter in conversation_starters]
+
+        return chat_history
+
+    except Exception as e:
+        raise RuntimeError(
+            f"An error occurred while generating conversation starters: {str(e)}") from e
+
+
+async def generate_conversations_response(llm: AsyncLLM,
+                                          chat_histories: List[List[Dict[str, str]]]
+                                          ) -> List[str]:
+    """
+    Generate responses for multiple chat histories using an asynchronous language model.
+
+    Args:
+        llm (AsyncLLM): An asynchronous language model instance.
+        chat_histories (List[List[Dict[str, str]]]): A list of chat histories, where each chat history is a list of message dictionaries.
+
+    Returns:
+        List[str]: A list of generated responses corresponding to each chat history.
+    """
+    # Initialize the chat generator with the given language model
+    generator = ChatGeneration(llm=llm)
+
+    # Load the generator (ensure this is awaited if it's an async method)
+    generator.load()
+
+    responses = next(generator.process(
+        [{"messages": chat_history} for chat_history in chat_histories]))
+    # Extract the 'instructions' from the result
+    responses = [response["generation"] for response in responses]
+
+    return responses
+
+
+async def comparison_score(llm: AsyncLLM,
+                           chat_histories: List[List[Dict[str, str]]],
+                           llm_responses: List[str],
+                           slm_responses: List[str]
+                           ) -> List[int]:
+    """
+    Asynchronously computes comparison scores between LLM and SLM responses based on chat histories.
+    Args:
+        llm (AsyncLLM): The large language model to be used for scoring.
+        chat_histories (List[List[Dict[str, str]]]): A list of chat histories, where each chat history is a list of dictionaries containing chat messages.
+        llm_responses (List[str]): A list of responses generated by the large language model.
+        slm_responses (List[str]): A list of responses generated by the small language model.
+    Returns:
+        List[int]: A list of integers where 0 indicates the LLM response is better, 1 indicates the SLM response is better, and 0 is the default in case of an error.
+    """
+
+    # Return 0 if LLM response is better, 1 if SLM response is better, default to 0 on error
+    generator = QualityScorer(llm=llm)
+    generator.load()
+
+    input_data = [
+        {
+            "instruction": chat_history,
+            "responses": [llm_response, slm_response]
+        }
+        for chat_history, llm_response, slm_response in zip(chat_histories, llm_responses, slm_responses)
+    ]
+
+    # Process the input data using the generator
+    scores_list = next(generator.process(input_data))
+
+    result_scores = []
+    for score_dict in scores_list:
+        try:
+            # Retrieve scores, defaulting to [0, 0] if not present
+            scores = score_dict.get("scores", [0, 0])
+
+            # Replace None with 0 in scores
+            scores = [s if s is not None else 0 for s in scores]
+
+            # Find the index of the maximum score
+            max_score = max(scores)
+            max_index = scores.index(max_score)
+            result_scores.append(max_index)
+        except KeyError:
+            # Default to 0 if an error occurs
+            result_scores.append(0)
+
+    return result_scores
+
+
+async def generate_next_conversation(llm: AsyncLLM,
+                                     chat_histories: List[Dict[str, str]],
+                                     responses: str) -> List[Dict[str, str]]:
+    """
+    Asynchronously generates the next conversation prompts based on chat histories and responses.
+    Args:
+        llm (AsyncLLM): The language model to use for generating the next conversation.
+        chat_histories (List[Dict[str, str]]): A list of dictionaries containing the chat histories.
+        responses (str): The responses to the chat histories.
+    Returns:
+        List[Dict[str, str]]: A list of dictionaries containing the next conversation prompts.
+    """
+
+    generator = SelfInstruct(
+        llm=llm,
+        num_instructions=1
+    )
+    generator.load()
+
+    input_data = [{"input": NEXT_QUESTION_PROMPT.format(chat_history=await build_chat_history(chat_history),
+                                                        response=response)}
+                  for chat_history, response in zip(chat_histories, responses)]
+
+    result = next(generator.process(input_data))
+    next_questions = [next_question["instructions"][0]
+                      for next_question in result]
+    return next_questions
