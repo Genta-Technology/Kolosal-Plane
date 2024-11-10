@@ -10,7 +10,8 @@ from kolosal_backend.prompt_generation.personalization_prompt import NEXT_QUESTI
 
 def generate_next_conversation(llm: AsyncLLM,
                                chat_histories: List[Dict[str, str]],
-                               responses: str) -> List[Dict[str, str]]:
+                               responses: str,
+                               **kwargs) -> List[Dict[str, str]]:
     """
     Asynchronously generates the next conversation prompts based on chat histories and responses.
     Args:
@@ -23,7 +24,8 @@ def generate_next_conversation(llm: AsyncLLM,
 
     generator = SelfInstruct(
         llm=llm,
-        num_instructions=1
+        num_instructions=1,
+        **kwargs
     )
     generator.load()
 

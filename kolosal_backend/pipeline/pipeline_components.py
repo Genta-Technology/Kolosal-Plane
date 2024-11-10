@@ -8,7 +8,8 @@ from distilabel.steps.tasks import SelfInstruct, ChatGeneration, QualityScorer
 def generate_conversation_starter(llm: AsyncLLM,
                                   num_instructions: int,
                                   instruction: str,
-                                  system_prompt: Optional[str]) -> List[Dict[str, str]]:
+                                  system_prompt: Optional[str],
+                                  **kwargs) -> List[Dict[str, str]]:
     """
     Generates a list of conversation starters in chat history format using a large language model (LLM).
 
@@ -30,7 +31,8 @@ def generate_conversation_starter(llm: AsyncLLM,
         # Initialize the SelfInstruct instance
         generator = SelfInstruct(
             llm=llm,
-            num_instructions=num_instructions
+            num_instructions=num_instructions,
+            **kwargs
         )
 
         # Load necessary resources for the generator
@@ -59,8 +61,8 @@ def generate_conversation_starter(llm: AsyncLLM,
 
 
 def generate_conversations_response(llm: AsyncLLM,
-                                    chat_histories: List[List[Dict[str, str]]]
-                                    ) -> List[str]:
+                                    chat_histories: List[List[Dict[str, str]]],
+                                    **kwargs) -> List[str]:
     """
     Generate responses for multiple chat histories using an asynchronous language model.
 
@@ -72,7 +74,7 @@ def generate_conversations_response(llm: AsyncLLM,
         List[str]: A list of generated responses corresponding to each chat history.
     """
     # Initialize the chat generator with the given language model
-    generator = ChatGeneration(llm=llm)
+    generator = ChatGeneration(llm=llm, **kwargs)
 
     # Load the generator
     generator.load()
@@ -88,7 +90,8 @@ def generate_conversations_response(llm: AsyncLLM,
 def comparison_score(llm: AsyncLLM,
                      chat_histories: List[List[Dict[str, str]]],
                      llm_responses: List[str],
-                     slm_responses: List[str]
+                     slm_responses: List[str],
+                     **kwargs
                      ) -> List[int]:
     """
     Asynchronously computes comparison scores between LLM and SLM responses based on chat histories.
@@ -102,7 +105,7 @@ def comparison_score(llm: AsyncLLM,
     """
 
     # Return 0 if LLM response is better, 1 if SLM response is better, default to 0 on error
-    generator = QualityScorer(llm=llm)
+    generator = QualityScorer(llm=llm, **kwargs)
     generator.load()
 
     input_data = [

@@ -31,9 +31,13 @@ def personalization_pipeline(instruction: PersonalizationParameter) -> pl.DataFr
     for i in tqdm(range(instruction.max_conversations)):
         # Step 2 Generate SLM and LLM response
         slm_responses = generate_conversations_response(
-            llm=instruction.slm_model, chat_histories=temproary_augmented_data["chat_history"].to_list())
+            llm=instruction.slm_model,
+            chat_histories=temproary_augmented_data["chat_history"].to_list(),
+            input_batch_size=10)
         llm_responses = generate_conversations_response(
-            llm=instruction.llm_model, chat_histories=temproary_augmented_data["chat_history"].to_list())
+            llm=instruction.llm_model,
+            chat_histories=temproary_augmented_data["chat_history"].to_list(),
+            input_batch_size=10)
 
         temproary_augmented_data = temproary_augmented_data.with_columns(
             pl.Series("slm_response", slm_responses),
@@ -45,7 +49,8 @@ def personalization_pipeline(instruction: PersonalizationParameter) -> pl.DataFr
                                   chat_histories=temproary_augmented_data["chat_history"].to_list(
                                   ),
                                   llm_responses=llm_responses,
-                                  slm_responses=slm_responses)
+                                  slm_responses=slm_responses,
+                                  input_batch_size=10)
 
         temproary_augmented_data = temproary_augmented_data.with_columns(
             pl.Series("scores", scores)
@@ -53,9 +58,15 @@ def personalization_pipeline(instruction: PersonalizationParameter) -> pl.DataFr
 
         # Step 4 Generate a followup question based on the chat history
         slm_questions = generate_next_conversation(
-            llm=instruction.llm_model, chat_histories=temproary_augmented_data["chat_history"].to_list(), responses=slm_responses)
+            llm=instruction.llm_model,
+            chat_histories=temproary_augmented_data["chat_history"].to_list(),
+            responses=slm_responses,
+            input_batch_size=10)
         llm_questions = generate_next_conversation(
-            llm=instruction.llm_model, chat_histories=temproary_augmented_data["chat_history"].to_list(), responses=llm_responses)
+            llm=instruction.llm_model,
+            chat_histories=temproary_augmented_data["chat_history"].to_list(),
+            responses=llm_responses,
+            input_batch_size=10)
 
         # Step 5 Geneare a new chat history dataset based on the questions asked
         generated_chat_histories = []
