@@ -1,3 +1,5 @@
 distilabel
 polars
 openai
+fastapi
+python-dotenv
