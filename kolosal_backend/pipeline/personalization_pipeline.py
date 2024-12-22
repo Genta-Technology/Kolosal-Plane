@@ -1,7 +1,7 @@
 """
 Pipeline function to generate augmented data for SLM fine-tuning based on user interaction preference
 """
-
+import copy
 import polars as pl
 from tqdm import tqdm
 
@@ -23,7 +23,7 @@ def personalization_pipeline(instruction: PersonalizationParameter) -> pl.DataFr
     })
 
     # Step 1: Generate conversation starter data
-    temproary_augmented_data = pl.DataFrame({
+    temporary_augmented_data = pl.DataFrame({
         "chat_history": generate_conversation_starter(llm=instruction.llm_model, num_instructions=instruction.conversation_starter_count, instruction=instruction.conversation_starter_instruction, system_prompt=instruction.conversation_personalization_instruction)
     })
 
@@ -32,45 +32,45 @@ def personalization_pipeline(instruction: PersonalizationParameter) -> pl.DataFr
         # Step 2 Generate SLM and LLM response
         slm_responses = generate_conversations_response(
             llm=instruction.slm_model,
-            chat_histories=temproary_augmented_data["chat_history"].to_list(),
+            chat_histories=temporary_augmented_data["chat_history"].to_list(),
             input_batch_size=10)
         llm_responses = generate_conversations_response(
             llm=instruction.llm_model,
-            chat_histories=temproary_augmented_data["chat_history"].to_list(),
+            chat_histories=temporary_augmented_data["chat_history"].to_list(),
             input_batch_size=10)
 
-        temproary_augmented_data = temproary_augmented_data.with_columns(
+        temporary_augmented_data = temporary_augmented_data.with_columns(
             pl.Series("slm_response", slm_responses),
             pl.Series("llm_response", llm_responses)
         )
 
         # Step 3 Generate responses score
         scores = comparison_score(llm=instruction.llm_model,
-                                  chat_histories=temproary_augmented_data["chat_history"].to_list(
+                                  chat_histories=temporary_augmented_data["chat_history"].to_list(
                                   ),
                                   llm_responses=llm_responses,
                                   slm_responses=slm_responses,
                                   input_batch_size=10)
 
-        temproary_augmented_data = temproary_augmented_data.with_columns(
+        temporary_augmented_data = temporary_augmented_data.with_columns(
             pl.Series("scores", scores)
         )
 
         # Step 4 Generate a followup question based on the chat history
         slm_questions = generate_next_conversation(
             llm=instruction.llm_model,
-            chat_histories=temproary_augmented_data["chat_history"].to_list(),
+            chat_histories=temporary_augmented_data["chat_history"].to_list(),
             responses=slm_responses,
             input_batch_size=10)
         llm_questions = generate_next_conversation(
             llm=instruction.llm_model,
-            chat_histories=temproary_augmented_data["chat_history"].to_list(),
+            chat_histories=temporary_augmented_data["chat_history"].to_list(),
             responses=llm_responses,
             input_batch_size=10)
 
         # Step 5 Geneare a new chat history dataset based on the questions asked
         generated_chat_histories = []
-        for chat_history, slm_response, llm_response, slm_question, llm_question in zip(temproary_augmented_data["chat_history"].to_list(), slm_responses, llm_responses, slm_questions, llm_questions):
+        for chat_history, slm_response, llm_response, slm_question, llm_question in zip(temporary_augmented_data["chat_history"].to_list(), slm_responses, llm_responses, slm_questions, llm_questions):
             # Append for generated dataset based on slm
             generated_chat_histories.append(
                 chat_history + [{"role": "assistant", "content": slm_response},
@@ -84,8 +84,8 @@ def personalization_pipeline(instruction: PersonalizationParameter) -> pl.DataFr
             )
 
         # Save the augmented data
-        augmented_data = augmented_data.vstack(temproary_augmented_data)
-        temproary_augmented_data = pl.DataFrame({
+        augmented_data = augmented_data.vstack(copy.deepcopy(temporary_augmented_data))
+        temporary_augmented_data = pl.DataFrame({
             "chat_history": generated_chat_histories
         })
 

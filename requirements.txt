@@ -3,3 +3,4 @@ polars
 openai
 fastapi
 python-dotenv
+uvicorn
