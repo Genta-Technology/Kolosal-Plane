@@ -26,6 +26,7 @@ class Augmentation():
                  documents: Optional[List[str]] = None,
                  conversation_starter_count: Optional[int] = 10,
                  max_conversations: Optional[int] = 10,
+                 # Limit the request per second
                  batch_size: Optional[int] = 16,
                  llm_model: Optional[AsyncLLM] = None,
                  slm_model: Optional[AsyncLLM] = None):

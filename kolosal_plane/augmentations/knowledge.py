@@ -29,6 +29,7 @@ class Knowledge(Augmentation):
         })
 
         # Step 1: Generate conversation starter question based on the given documents
+        # TODO: Add batching for case when document is large
         for document in self.documents:
             built_knowledge_instructions = self.build_knowledge_instruction()
 
@@ -45,6 +46,7 @@ class Knowledge(Augmentation):
         # Loop the conversation according to the instruction max conversation times to generate augmented data
         for _ in tqdm(range(self.max_conversations)):
             # Step 2 Generate SLM and LLM response
+            # TODO: Add batching for llm and slm limit issue
             built_chat_histories = self.build_chat_histories(
                 documents=temporary_augmented_data["document"].to_list(),
                 chat_histories=temporary_augmented_data["chat_history"].to_list())
@@ -60,6 +62,7 @@ class Knowledge(Augmentation):
             )
 
             # Step 3 Generate responses score
+            # TODO: Add batching for llm and slm limit issue
             scores = self.comparison_score(
                 chat_histories=temporary_augmented_data["chat_history"].to_list(
                 ),
@@ -71,6 +74,7 @@ class Knowledge(Augmentation):
             )
 
             # Step 4 Generate a followup question based on the chat history and Document
+            # TODO: Add batching for llm and slm limit issue
             slm_questions, slm_documents = self.generate_next_conversation_slm(
                 chat_histories=temporary_augmented_data["chat_history"].to_list(
                 ),

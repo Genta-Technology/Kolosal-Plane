@@ -33,6 +33,7 @@ class Personalization(Augmentation):
         # Loop the conversation n times to generate augmented data
         for _ in tqdm(range(self.max_conversations)):
             # Step 2 Generate SLM and LLM response
+            # TODO: Add batching for llm and slm limit issue
             slm_responses = self.generate_response_slm(
                 chat_histories=temporary_augmented_data["chat_history"].to_list(
                 ),
@@ -48,6 +49,7 @@ class Personalization(Augmentation):
             )
 
             # Step 3 Generate responses score
+            # TODO: Add batching for llm and slm limit issue
             scores = self.comparison_score(chat_histories=temporary_augmented_data["chat_history"].to_list(),
                                            llm_responses=llm_responses,
                                            slm_responses=slm_responses,
@@ -58,6 +60,7 @@ class Personalization(Augmentation):
             )
 
             # Step 4 Generate a followup question based on the chat history
+            # TODO: Add batching for llm and slm limit issue
             slm_questions = self.generate_next_conversation_slm(
                 chat_histories=temporary_augmented_data["chat_history"].to_list(
                 ),
