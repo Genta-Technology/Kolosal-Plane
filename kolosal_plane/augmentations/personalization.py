@@ -15,9 +15,18 @@ from kolosal_plane.augmentations.prompt.personalization_prompt import NEXT_QUEST
 class Personalization(Augmentation):
     def augmentate(self):
         """
-        Given an instruction created based on user interaction preference,
-        this function generate an augmented dataset of conversation to finetune a SLM to fit the user interaction preference
+        Augment the dataset by generating conversation data.
+        This method performs the following steps:
+        1. Generates initial conversation starter data.
+        2. Iteratively generates responses from SLM and LLM models.
+        3. Scores the generated responses.
+        4. Generates follow-up questions based on the chat history.
+        5. Creates new chat history datasets based on the questions asked.
+        6. Aggregates the augmented data.
+        Returns:
+            polars.DataFrame: The augmented dataset containing chat histories, SLM responses, LLM responses, and scores.
         """
+        
         augmented_data = pl.DataFrame(schema={
             "chat_history": pl.List(pl.Struct([pl.Field("role", pl.Utf8), pl.Field("content", pl.Utf8)])),
             "slm_response": pl.Utf8,
