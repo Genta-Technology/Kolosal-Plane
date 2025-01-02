@@ -186,31 +186,40 @@ class Augmentation():
             List[int]: A list of integers where 0 indicates the LLM response is better, 1 indicates the SLM response is better, and 0 is the default in case of an error.
         """
 
-        # Return 0 if LLM response is better, 1 if SLM response is better, default to 0 on error
+        # Initialize and load the QualityScorer
         generator = QualityScorer(llm=self.llm_model, **kwargs)
         generator.load()
 
+        # Prepare the input data for scoring
         input_data = [
             {
                 "instruction": chat_history,
                 "responses": [llm_response, slm_response]
             }
-            for chat_history, llm_response, slm_response in zip(chat_histories, llm_responses, slm_responses)
+            for chat_history, llm_response, slm_response
+            in zip(chat_histories, llm_responses, slm_responses)
         ]
 
-        # Process the input data using the generator
-        scores_list = next(generator.process(input_data))
+        # We'll collect all batch scores in this list
+        all_scores_list = []
 
+        # Process input_data in batches
+        for i in range(0, len(input_data), self.batch_size):
+            batch = input_data[i : i + self.batch_size]
+            # Process the batch
+            batch_scores = next(generator.process(batch))
+            # Extend the master list with results from this batch
+            all_scores_list.extend(batch_scores)
+
+        # Now compute the comparison results from the combined scores
         result_scores = []
-        for score_dict in scores_list:
+        for score_dict in all_scores_list:
             try:
                 # Retrieve scores, defaulting to [0, 0] if not present
                 scores = score_dict.get("scores", [0, 0])
-
-                # Replace None with 0 in scores
+                # Replace any None values with 0
                 scores = [s if s is not None else 0 for s in scores]
-
-                # Find the index of the maximum score
+                # Find the index of the highest score
                 max_score = max(scores)
                 max_index = scores.index(max_score)
                 result_scores.append(max_index)
