@@ -26,7 +26,7 @@ class Personalization(Augmentation):
         Returns:
             polars.DataFrame: The augmented dataset containing chat histories, SLM responses, LLM responses, and scores.
         """
-        
+
         augmented_data = pl.DataFrame(schema={
             "chat_history": pl.List(pl.Struct([pl.Field("role", pl.Utf8), pl.Field("content", pl.Utf8)])),
             "slm_response": pl.Utf8,
@@ -45,12 +45,10 @@ class Personalization(Augmentation):
             # TODO: Add batching for llm and slm limit issue
             slm_responses = self.generate_response_slm(
                 chat_histories=temporary_augmented_data["chat_history"].to_list(
-                ),
-                input_batch_size=10)
+                ))
             llm_responses = self.generate_response_llm(
                 chat_histories=temporary_augmented_data["chat_history"].to_list(
-                ),
-                input_batch_size=10)
+                ))
 
             temporary_augmented_data = temporary_augmented_data.with_columns(
                 pl.Series("slm_response", slm_responses),
@@ -58,23 +56,22 @@ class Personalization(Augmentation):
             )
 
             # Step 3 Generate responses score
-            # TODO: Add batching for llm and slm limit issue
             scores = self.comparison_score(chat_histories=temporary_augmented_data["chat_history"].to_list(),
                                            llm_responses=llm_responses,
-                                           slm_responses=slm_responses,
-                                           input_batch_size=10)
+                                           slm_responses=slm_responses)
 
             temporary_augmented_data = temporary_augmented_data.with_columns(
                 pl.Series("scores", scores)
             )
 
             # Step 4 Generate a followup question based on the chat history
-            # TODO: Add batching for llm and slm limit issue
-            slm_questions = self.generate_next_conversation_slm(
+            slm_questions = self.generate_next_conversation(
+                llm=self.slm_model,
                 chat_histories=temporary_augmented_data["chat_history"].to_list(
                 ),
                 responses=slm_responses)
-            llm_questions = self.generate_next_conversation_llm(
+            llm_questions = self.generate_next_conversation(
+                llm=self.llm_model,
                 chat_histories=temporary_augmented_data["chat_history"].to_list(
                 ),
                 responses=llm_responses)
@@ -102,34 +99,6 @@ class Personalization(Augmentation):
             })
 
         return augmented_data
-
-    def generate_next_conversation_llm(self, chat_histories: List[List[Dict[str, str]]], **kwargs) -> List[Dict[str, str]]:
-        """
-        Generates responses for a list of chat histories using a language model.
-        Args:
-            chat_histories (List[List[Dict[str, str]]]): A list of chat histories, where each chat history is a list of 
-                dictionaries containing messages. Each dictionary should have keys 'role' and 'content' representing 
-                the role of the speaker and the message content respectively.
-            **kwargs: Additional keyword arguments to be passed to the ChatGeneration class.
-        Returns:
-            List[Dict[str, str]]: A list of dictionaries containing the next conversation prompts.
-        """
-
-        return self.generate_response(self.llm_model, chat_histories, **kwargs)
-
-    def generate_next_conversation_slm(self, chat_histories: List[List[Dict[str, str]]], **kwargs) -> List[Dict[str, str]]:
-        """
-        Generates responses for a list of chat histories using a language model.
-        Args:
-            chat_histories (List[List[Dict[str, str]]]): A list of chat histories, where each chat history is a list of 
-                dictionaries containing messages. Each dictionary should have keys 'role' and 'content' representing 
-                the role of the speaker and the message content respectively.
-            **kwargs: Additional keyword arguments to be passed to the ChatGeneration class.
-        Returns:
-            List[Dict[str, str]]: A list of dictionaries containing the next conversation prompts.
-        """
-
-        return self.generate_response(self.slm_model, chat_histories, **kwargs)
 
     def generate_next_conversation(self,
                                    llm: AsyncLLM,
