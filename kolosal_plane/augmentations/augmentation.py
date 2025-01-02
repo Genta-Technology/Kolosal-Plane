@@ -100,15 +100,18 @@ class Augmentation():
 
     def generate_response_llm(self, chat_histories: List[List[Dict[str, str]]], **kwargs) -> List[str]:
         """
-        Generates responses using a language model.
+        Generates responses using a language model in batches.
+
         Args:
-            chat_histories (List[List[Dict[str, str]]]): A list of chat histories, where each chat history is a list of dictionaries containing the chat messages.
+            chat_histories (List[List[Dict[str, str]]]): A list of chat histories, where each chat history is 
+                a list of dictionaries containing the chat messages.
             **kwargs: Additional keyword arguments to be passed to the response generation function.
+
         Returns:
             List[str]: A list of generated responses.
         """
 
-        return self.generate_response(self.llm_model, chat_histories, llm=True, **kwargs)
+        return self.generate_response(self.llm_model, chat_histories, **kwargs)
 
     def generate_response_slm(self, chat_histories: List[List[Dict[str, str]]], **kwargs) -> List[str]:
         """
@@ -119,17 +122,24 @@ class Augmentation():
         Returns:
             List[str]: A list of generated responses.
         """
+        return self.generate_response(self.slm_model, chat_histories, **kwargs)
 
-        return self.generate_response(self.slm_model, chat_histories, llm=False, **kwargs)
-
-    def generate_response(self, lm: AsyncLLM, chat_histories: List[List[Dict[str, str]]], **kwargs) -> List[str]:
+    def generate_response(
+        self,
+        lm: AsyncLLM,
+        chat_histories: List[List[Dict[str, str]]],
+        **kwargs
+    ) -> List[str]:
         """
         Generates responses for a list of chat histories using a language model.
+
         Args:
-            chat_histories (List[List[Dict[str, str]]]): A list of chat histories, where each chat history is a list of 
-                dictionaries containing messages. Each dictionary should have keys 'role' and 'content' representing 
-                the role of the speaker and the message content respectively.
+            lm (AsyncLLM): The asynchronous language model to use for generating responses.
+            chat_histories (List[List[Dict[str, str]]]): A list of chat histories, where each chat history 
+                is a list of dictionaries containing messages. Each dictionary should have keys 'role' 
+                and 'content' representing the role of the speaker and the message content respectively.
             **kwargs: Additional keyword arguments to be passed to the ChatGeneration class.
+
         Returns:
             List[str]: A list of generated responses corresponding to each chat history.
         """
@@ -140,12 +150,25 @@ class Augmentation():
         # Load the generator
         generator.load()
 
-        responses = next(generator.process(
-            [{"messages": chat_history} for chat_history in chat_histories]))
-        # Extract the 'instructions' from the result
-        responses = [response["generation"] for response in responses]
+        all_responses = []
 
-        return responses
+        # Process chat_histories in batches
+        for i in range(0, len(chat_histories), self.batch_size):
+            # Slice out a batch of chat histories
+            batch = chat_histories[i: i + self.batch_size]
+
+            # Pass the batch to the generator
+            batch_result = next(generator.process(
+                [{"messages": chat_history} for chat_history in batch]))
+
+            # Extract the 'generation' field from each response in the batch
+            batch_responses = [response["generation"]
+                               for response in batch_result]
+
+            # Accumulate the responses
+            all_responses.extend(batch_responses)
+
+        return all_responses
 
     def comparison_score(self,
                          chat_histories: List[List[Dict[str, str]]],
