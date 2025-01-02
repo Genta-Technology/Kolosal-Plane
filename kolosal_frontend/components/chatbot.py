@@ -65,9 +65,9 @@ def chatbot_preview_ui():
                 "role": "assistant",
                 "content": response
             })
-
-            # Rerun to update the chat display
-            st.rerun()
+            
+            with st.chat_message("assistant"):
+                st.markdown(response)
 
         if st.button("Clear chat", key="clear_chat"):
             st.session_state.messages_preview = []
