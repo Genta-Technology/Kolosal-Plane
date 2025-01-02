@@ -49,9 +49,9 @@ class Knowledge(Augmentation):
         # Step 1: Generate conversation starter question based on the given documents
         for document in self.documents:
             built_knowledge_instructions = self.build_knowledge_instruction()
+            self.conversation_starter_instruction = built_knowledge_instructions
 
-            chat_histories_document = self.generate_conversation_starter(
-                instruction=built_knowledge_instructions)
+            chat_histories_document = self.generate_conversation_starter()
 
             document_data = [document] * len(chat_histories_document)
 
