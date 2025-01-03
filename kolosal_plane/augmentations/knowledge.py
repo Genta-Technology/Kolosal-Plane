@@ -48,7 +48,7 @@ class Knowledge(Augmentation):
 
         # Step 1: Generate conversation starter question based on the given documents
         for document in self.documents:
-            built_knowledge_instructions = self.build_knowledge_instruction()
+            built_knowledge_instructions = self.build_knowledge_instruction(document=document)
             self.conversation_starter_instruction = built_knowledge_instructions
 
             chat_histories_document = self.generate_conversation_starter()
@@ -138,7 +138,8 @@ class Knowledge(Augmentation):
 
         return augmented_data
 
-    def build_knowledge_instruction(self) -> str:
+    def build_knowledge_instruction(self,
+                                    document: str) -> str:
         """
         Builds the instruction for generating knowledge-based conversations.
         Args:
@@ -147,7 +148,7 @@ class Knowledge(Augmentation):
             str: The instruction for generating knowledge-based conversations.
         """
         return CONVERSATION_STARTER_PROMPT.format(instruction=self.conversation_starter_instruction,
-                                                  document=self.documents)
+                                                  document=document)
 
     def build_knowledge_system(self,
                                document: str) -> str:

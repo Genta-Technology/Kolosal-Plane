@@ -205,7 +205,7 @@ class Augmentation():
 
         # Process input_data in batches
         for i in range(0, len(input_data), self.batch_size):
-            batch = input_data[i : i + self.batch_size]
+            batch = input_data[i: i + self.batch_size]
             # Process the batch
             batch_scores = next(generator.process(batch))
             # Extend the master list with results from this batch
