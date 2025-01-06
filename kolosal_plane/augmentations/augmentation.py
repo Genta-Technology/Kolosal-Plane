@@ -153,21 +153,28 @@ class Augmentation():
         all_responses = []
 
         # Process chat_histories in batches
-        # TODO: Add Try Catch for each batches
         for i in range(0, len(chat_histories), self.batch_size):
-            # Slice out a batch of chat histories
-            batch = chat_histories[i: i + self.batch_size]
+            try:
+                # Slice out a batch of chat histories
+                batch = chat_histories[i: i + self.batch_size]
 
-            # Pass the batch to the generator
-            batch_result = next(generator.process(
-                [{"messages": chat_history} for chat_history in batch]))
+                # Pass the batch to the generator
+                batch_result = next(generator.process(
+                    [{"messages": chat_history} for chat_history in batch]))
 
-            # Extract the 'generation' field from each response in the batch
-            batch_responses = [response["generation"]
-                               for response in batch_result]
+                # Extract the 'generation' field from each response in the batch
+                batch_responses = [response["generation"]
+                                   for response in batch_result]
 
-            # Accumulate the responses
-            all_responses.extend(batch_responses)
+                # Accumulate the responses
+                all_responses.extend(batch_responses)
+
+            except Exception as e:
+                # Print the error message for the failed batch
+                print(
+                    f"Error processing batch {i//self.batch_size + 1}: {str(e)}")
+                # Skip the failed batch and continue with the next one
+                continue
 
         return all_responses
 
@@ -205,13 +212,22 @@ class Augmentation():
         all_scores_list = []
 
         # Process input_data in batches
-        # TODO: Add Try Catch for each batches
         for i in range(0, len(input_data), self.batch_size):
-            batch = input_data[i: i + self.batch_size]
-            # Process the batch
-            batch_scores = next(generator.process(batch))
-            # Extend the master list with results from this batch
-            all_scores_list.extend(batch_scores)
+            try:
+                batch = input_data[i: i + self.batch_size]
+                # Process the batch
+                batch_scores = next(generator.process(batch))
+                # Extend the master list with results from this batch
+                all_scores_list.extend(batch_scores)
+            except Exception as e:
+                # Print the error message for the failed batch
+                print(
+                    f"Error processing batch {i//self.batch_size + 1}: {str(e)}")
+                # Add default scores (0) for each item in the failed batch
+                default_scores = [{"scores": [0, 0]}
+                                  for _ in range(len(batch))]
+                all_scores_list.extend(default_scores)
+                continue
 
         # Now compute the comparison results from the combined scores
         result_scores = []
@@ -225,7 +241,9 @@ class Augmentation():
                 max_score = max(scores)
                 max_index = scores.index(max_score)
                 result_scores.append(max_index)
-            except KeyError:
+            except (KeyError, ValueError, TypeError) as e:
+                # Print error for debugging purposes
+                print(f"Error processing score dict {score_dict}: {str(e)}")
                 # Default to 0 if an error occurs
                 result_scores.append(0)
 
