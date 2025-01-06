@@ -48,7 +48,8 @@ class Knowledge(Augmentation):
 
         # Step 1: Generate conversation starter question based on the given documents
         for document in self.documents:
-            built_knowledge_instructions = self.build_knowledge_instruction(document=document)
+            built_knowledge_instructions = self.build_knowledge_instruction(
+                document=document)
             self.conversation_starter_instruction = built_knowledge_instructions
 
             chat_histories_document = self.generate_conversation_starter()
@@ -192,7 +193,7 @@ class Knowledge(Augmentation):
                                    llm: AsyncLLM,
                                    chat_histories: List[List[Dict[str, str]]],
                                    responses: List[str],
-                                   previous_documents: List[str],) -> Tuple[str, List[str]]:
+                                   previous_documents: List[str]) -> Tuple[List[str], List[str]]:
         """
         Generate the next conversation based on chat history, responses, and documents.
         This function uses a language model to generate the next conversation prompts
@@ -209,46 +210,86 @@ class Knowledge(Augmentation):
             List[str]: A list of generated next conversation prompts.
             List[str]: A list of documents used for generating the conversation.
         """
-        generator = SelfInstruct(
-            llm=llm,
-            num_instructions=1
-        )
-        generator.load()
+        try:
+            generator = SelfInstruct(
+                llm=llm,
+                num_instructions=1
+            )
+            generator.load()
+        except Exception as e:
+            print(f"Error initializing generator: {str(e)}")
+            # Return empty lists if generator initialization fails
+            return [], []
 
-        # Built the input data for the generator such that it either:
-        # 1. Generate the next conversation based on the chat history and response and the given document
-        # 2. Generate the next conversation based on the chat history and response and the document bank (different knowledge)
-
+        # Built the input data for the generator
         input_data = []
         documents_used = []
 
-        for chat_history, response, document in zip(chat_histories, responses, previous_documents):
-            built_chat_history = self.convert_chat_history(chat_history)
-            if random.choice([True, False]):
-                # Option A: Generate the next conversation based on the chat history, response, and the given document
-                input_data.append({"input": NEXT_QUESTION_SAME_TOPIC_PROMPT.format(chat_history=built_chat_history,
-                                                                                   response=response,
-                                                                                   document=document)})
-                # Append the document to the used documents for further processing
-                documents_used.append(document)
-            else:
-                # Option B: Generate the next conversation based on the chat history, response, and the document bank
-                input_data.append({"input": NEXT_QUESTION_DIFFERENT_TOPIC_PROMPT.format(chat_history=built_chat_history,
-                                                                                        response=response,
-                                                                                        document=random.choice(self.documents))})
-                # Append the document to the used documents for further processing
-                documents_used.append(document)
+        try:
+            for chat_history, response, document in zip(chat_histories, responses, previous_documents):
+                try:
+                    built_chat_history = self.convert_chat_history(
+                        chat_history)
+                    if random.choice([True, False]):
+                        # Option A: Generate based on given document
+                        input_data.append({
+                            "input": NEXT_QUESTION_SAME_TOPIC_PROMPT.format(
+                                chat_history=built_chat_history,
+                                response=response,
+                                document=document
+                            )
+                        })
+                    else:
+                        # Option B: Generate based on document bank
+                        input_data.append({
+                            "input": NEXT_QUESTION_DIFFERENT_TOPIC_PROMPT.format(
+                                chat_history=built_chat_history,
+                                response=response,
+                                document=random.choice(self.documents)
+                            )
+                        })
+                    documents_used.append(document)
+                except Exception as e:
+                    print(
+                        f"Error processing chat history {len(input_data)}: {str(e)}")
+                    # Add a default input using the original document
+                    input_data.append({
+                        "input": NEXT_QUESTION_SAME_TOPIC_PROMPT.format(
+                            chat_history="Previous conversation unavailable",
+                            response="Previous response unavailable",
+                            document=document
+                        )
+                    })
+                    documents_used.append(document)
+        except Exception as e:
+            print(f"Error building input data: {str(e)}")
+            return [], []
 
-        # Now process the input_data in batches to get the generated prompts
-        # TODO: Add try catch for the generator process for each batch
+        # Process the input_data in batches
         all_results = []
 
         for i in range(0, len(input_data), self.batch_size):
-            batch = input_data[i: i + self.batch_size]
-            batch_result = next(generator.process(batch))
-            all_results.extend(batch_result)
+            try:
+                batch = input_data[i: i + self.batch_size]
+                batch_result = next(generator.process(batch))
+                all_results.extend(batch_result)
+            except Exception as e:
+                print(
+                    f"Error processing batch {i//self.batch_size + 1}: {str(e)}")
+                # Add default results for the failed batch
+                default_result = {
+                    "instructions": ["Could not generate next question. Please try again."]
+                }
+                all_results.extend([default_result] * len(batch))
 
-        # Extract the generated conversation prompts
-        next_questions = [res["instructions"][0] for res in all_results]
+        # Extract the generated conversation prompts with error handling
+        next_questions = []
+        for i, result in enumerate(all_results):
+            try:
+                next_questions.append(result["instructions"][0])
+            except (KeyError, IndexError, TypeError) as e:
+                print(f"Error extracting question from result {i}: {str(e)}")
+                next_questions.append(
+                    "Could not generate next question. Please try again.")
 
         return next_questions, documents_used
