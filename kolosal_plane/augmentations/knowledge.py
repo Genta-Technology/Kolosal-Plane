@@ -240,6 +240,7 @@ class Knowledge(Augmentation):
                 documents_used.append(document)
 
         # Now process the input_data in batches to get the generated prompts
+        # TODO: Add try catch for the generator process for each batch
         all_results = []
 
         for i in range(0, len(input_data), self.batch_size):

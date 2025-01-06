@@ -153,6 +153,7 @@ class Augmentation():
         all_responses = []
 
         # Process chat_histories in batches
+        # TODO: Add Try Catch for each batches
         for i in range(0, len(chat_histories), self.batch_size):
             # Slice out a batch of chat histories
             batch = chat_histories[i: i + self.batch_size]
@@ -204,6 +205,7 @@ class Augmentation():
         all_scores_list = []
 
         # Process input_data in batches
+        # TODO: Add Try Catch for each batches
         for i in range(0, len(input_data), self.batch_size):
             batch = input_data[i: i + self.batch_size]
             # Process the batch
