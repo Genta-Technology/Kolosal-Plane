@@ -251,7 +251,7 @@ class Knowledge(Augmentation):
                 batch = input_data[i: i + self.batch_size]
                 batch_result = next(generator.process(batch))
                 all_results.extend(batch_result)
-            except Exception as e:
+            except (RuntimeError, ValueError, TypeError) as e:
                 # TODO: FIx the processing BATCH
                 print(
                     f"Error processing batch {i//self.batch_size + 1}: {str(e)}")
