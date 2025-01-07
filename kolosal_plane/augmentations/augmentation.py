@@ -94,7 +94,7 @@ class Augmentation():
 
             return chat_history
 
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError) as e:
             raise RuntimeError(
                 f"An error occurred while generating conversation starters: {str(e)}") from e
 
@@ -169,7 +169,7 @@ class Augmentation():
                 # Accumulate the responses
                 all_responses.extend(batch_responses)
 
-            except Exception as e:
+            except (RuntimeError, ValueError, TypeError) as e:
                 # Print the error message for the failed batch
                 print(
                     f"Error processing batch {i//self.batch_size + 1}: {str(e)}")
@@ -220,11 +220,11 @@ class Augmentation():
                 batch_scores = next(generator.process(batch))
                 # Extend the master list with results from this batch
                 all_scores_list.extend(batch_scores)
-            except Exception as e:
+            except (RuntimeError, ValueError, TypeError) as e:
                 # Print the error message for the failed batch
                 print(
                     f"Error processing batch {i//self.batch_size + 1}: {str(e)}")
-                # Add default scores (0) for each item in the failed batch
+                # Add default scores (0) for each item in the failed batch (LLM)
                 default_scores = [{"scores": [0, 0]}
                                   for _ in range(len(batch))]
                 all_scores_list.extend(default_scores)
