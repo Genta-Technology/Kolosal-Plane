@@ -174,6 +174,7 @@ class Augmentation():
                 print(
                     f"Error processing batch {i//self.batch_size + 1}: {str(e)}")
                 # Skip the failed batch and continue with the next one
+                # TODO: Add default responses for failed batches to be omitted
                 continue
 
         return all_responses
