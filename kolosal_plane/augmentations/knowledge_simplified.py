@@ -32,7 +32,7 @@ class SimpleKnowledge(Knowledge):
 
          # Loop the conversation according to the instruction max conversation times to generate augmented data
         for _ in tqdm(range(self.max_conversations)):
-            # Step 2 Generate LLM response
+            # Step 2 Generate LLM response: Could contained failed batch
             built_chat_histories = self.build_chat_histories(
                 documents=temporary_augmented_data["document"].to_list(),
                 chat_histories=temporary_augmented_data["chat_history"].to_list())
@@ -49,7 +49,7 @@ class SimpleKnowledge(Knowledge):
                 previous_documents=temporary_augmented_data["document"].to_list(
                 ))
 
-            # Step 4: Generate a new chat history dataset based on the questions asked
+            # Step 4: Generate a new chat history dataset based on the questions asked: Could contained failed batch
             generated_chat_histories = []
             generated_chat_documents = []
             for chat_history, response, question, document in zip(
@@ -63,11 +63,14 @@ class SimpleKnowledge(Knowledge):
                     {"role": "assistant", "content": response},
                     {"role": "user", "content": question}
                 ]
+                
+                # TODO: Remove the failed batch in the new chat history and documents
 
                 generated_chat_histories.append(new_chat_history)
                 generated_chat_documents.append(document)
 
             # Save the augmented data
+            # TODO: Remove the failed batch in the temporary dataset
             augmented_data = augmented_data.vstack(
                 copy.deepcopy(temporary_augmented_data))
 
