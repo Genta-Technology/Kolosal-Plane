@@ -101,7 +101,7 @@ class Knowledge(Augmentation):
                 llm=self.llm_model,
                 chat_histories=temporary_augmented_data["chat_history"].to_list(
                 ),
-                responses=slm_responses,
+                responses=llm_responses,
                 previous_documents=temporary_augmented_data["document"].to_list(
                 ))
             # Step 5 Geneare a new chat history dataset based on the questions asked
