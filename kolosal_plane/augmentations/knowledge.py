@@ -249,15 +249,20 @@ class Knowledge(Augmentation):
         for i in range(0, len(input_data), self.batch_size):
             try:
                 batch = input_data[i: i + self.batch_size]
-                batch_result = next(generator.process(batch))
-                all_results.extend(batch_result)
+                # Check for failed response batch if detected, return the default failed batch'
+                if "FAILED BATCH" in batch:
+                    all_results.extend({
+                        "instructions": ["FAILED BATCH"]
+                    })
+                else:
+                    batch_result = next(generator.process(batch))
+                    all_results.extend(batch_result)
             except (RuntimeError, ValueError, TypeError) as e:
-                # TODO: FIx the processing BATCH
                 print(
                     f"Error processing batch {i//self.batch_size + 1}: {str(e)}")
                 # Add default results for the failed batch
                 default_result = {
-                    "instructions": ["Could not generate next question. Please try again."]
+                    "instructions": ["FAILED BATCH"]
                 }
                 all_results.extend([default_result] * len(batch))
 
