@@ -202,26 +202,19 @@ class Augmentation():
             in zip(chat_histories, llm_responses, slm_responses)
         ]
 
-        # We'll collect all batch scores in this list
-        all_scores_list = []
+        all_scores_list = generator.process(input_data)
 
-        # Process input_data in batches
-        for i in range(0, len(input_data), self.batch_size):
+        # Process each input individually
+        for data in input_data:
             try:
-                batch = input_data[i: i + self.batch_size]
-                # Process the batch
-                batch_scores = next(generator.process(batch))
-                # Extend the master list with results from this batch
-                all_scores_list.extend(batch_scores)
+                # Process the single data point
+                scores = next(generator.process([data]))
+                all_scores_list.extend(scores)
             except (RuntimeError, ValueError, TypeError) as e:
-                # Print the error message for the failed batch
-                print(
-                    f"Error processing batch {i//self.batch_size + 1}: {str(e)}")
-                # Add default scores (0) for each item in the failed batch (LLM)
-                default_scores = [{"scores": [0, 0]}
-                                  for _ in range(len(batch))]
-                all_scores_list.extend(default_scores)
-                continue
+                # Print the error message for the failed processing
+                print(f"Error processing data {data}: {str(e)}")
+                # Add a default score (0) for the failed processing
+                all_scores_list.append({"scores": [0, 0]})
 
         # Now compute the comparison results from the combined scores
         result_scores = []
