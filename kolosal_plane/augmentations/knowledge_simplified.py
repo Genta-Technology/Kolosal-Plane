@@ -32,7 +32,10 @@ class SimpleKnowledge(Knowledge):
             }))
 
         # Loop the conversation according to the instruction max conversation times to generate augmented data
-        for _ in tqdm(range(self.max_conversations)):
+        is_lasts = False
+        for count in tqdm(range(self.max_conversations)):
+            if count == self.max_conversations:
+                is_lasts = True
             # Find not answered dataset
             temporary_augmented_data = augmented_data.filter(
                 pl.col("response") == "")
@@ -59,7 +62,7 @@ class SimpleKnowledge(Knowledge):
                         chat_histories=built_chat_histories)
 
                     # Save the response to the built dataset
-                    augmented_data.vstack(pl.DataFrame({
+                    augmented_data = augmented_data.vstack(pl.DataFrame({
                         "chat_history": batch["chat_history"],
                         "document": batch["document"],
                         "response": responses
@@ -70,7 +73,7 @@ class SimpleKnowledge(Knowledge):
                     batch_status = False
 
                 # Step 3 Generate a followup question based on the chat history and Document
-                if batch_status:
+                if batch_status and not is_lasts:
                     try:
                         questions, documents = self.generate_next_conversation(
                             llm=self.llm_model,
