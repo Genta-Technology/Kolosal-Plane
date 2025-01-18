@@ -152,32 +152,23 @@ class Augmentation():
 
         all_responses = []
 
-        # Process chat_histories in batches
-        for i in range(0, len(chat_histories), self.batch_size):
+        # Process each chat history individually
+        for chat_history in chat_histories:
             try:
-                # Slice out a batch of chat histories
-                batch = chat_histories[i: i + self.batch_size]
+                # Generate a response for the current chat history
+                result = next(generator.process([{"messages": chat_history}]))
 
-                # Pass the batch to the generator
-                batch_result = next(generator.process(
-                    [{"messages": chat_history} for chat_history in batch]))
+                # Extract the 'generation' field from the response
+                response = result[0]["generation"]
 
-                # Extract the 'generation' field from each response in the batch
-                batch_responses = [response["generation"]
-                                   for response in batch_result]
-
-                # Accumulate the responses
-                all_responses.extend(batch_responses)
+                # Accumulate the response
+                all_responses.append(response)
 
             except (RuntimeError, ValueError, TypeError) as e:
-                # Print the error message for the failed batch
-                print(
-                    f"Error processing batch {i//self.batch_size + 1}: {str(e)}")
-                # Skip the failed batch and continue with the next one
-                # Add default responses for the failed batch
-                default_responses = ["FAILED BATCH"] * len(batch)
-                all_responses.extend(default_responses)
-                continue
+                # Print the error message for the failed generation
+                print(f"Error processing chat history: {str(e)}")
+                # Add a default response for the failed chat history
+                all_responses.append("FAILED RESPONSE")
 
         return all_responses
 
