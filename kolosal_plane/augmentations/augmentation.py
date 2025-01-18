@@ -204,18 +204,6 @@ class Augmentation():
 
         all_scores_list = generator.process(input_data)
 
-        # Process each input individually
-        for data in input_data:
-            try:
-                # Process the single data point
-                scores = next(generator.process([data]))
-                all_scores_list.extend(scores)
-            except (RuntimeError, ValueError, TypeError) as e:
-                # Print the error message for the failed processing
-                print(f"Error processing data {data}: {str(e)}")
-                # Add a default score (0) for the failed processing
-                all_scores_list.append({"scores": [0, 0]})
-
         # Now compute the comparison results from the combined scores
         result_scores = []
         for score_dict in all_scores_list:
