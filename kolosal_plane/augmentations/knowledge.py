@@ -216,64 +216,39 @@ class Knowledge(Augmentation):
         )
         generator.load()
 
-        # Built the input data for the generator
+        # Build the input data for the generator
         input_data = []
         documents_used = []
 
         for chat_history, response, document in zip(chat_histories, responses, previous_documents):
-            built_chat_history = self.convert_chat_history(
-                chat_history)
+            built_chat_history = self.convert_chat_history(chat_history)
             if random.choice([True, False]):
-                # Option A: Generate based on given document
-                input_data.append({
-                    "input": NEXT_QUESTION_SAME_TOPIC_PROMPT.format(
-                        chat_history=built_chat_history,
-                        response=response,
-                        document=document
-                    )
-                })
+                # Option A: Generate based on the provided document
+                prompt = NEXT_QUESTION_SAME_TOPIC_PROMPT.format(
+                    chat_history=built_chat_history,
+                    response=response,
+                    document=document
+                )
             else:
-                # Option B: Generate based on document bank
-                input_data.append({
-                    "input": NEXT_QUESTION_DIFFERENT_TOPIC_PROMPT.format(
-                        chat_history=built_chat_history,
-                        response=response,
-                        document=random.choice(self.documents)
-                    )
-                })
+                # Option B: Generate based on a random document from the bank
+                prompt = NEXT_QUESTION_DIFFERENT_TOPIC_PROMPT.format(
+                    chat_history=built_chat_history,
+                    response=response,
+                    document=random.choice(self.documents)
+                )
+            input_data.append({"input": prompt})
             documents_used.append(document)
 
-        # Process the input_data in batches
-        all_results = []
+        # Process all input data in one go
+        all_results = next(generator.process(input_data))
 
-        for i in range(0, len(input_data), self.batch_size):
-            try:
-                batch = input_data[i: i + self.batch_size]
-                # Check for failed response batch if detected, return the default failed batch'
-                if "FAILED BATCH" in batch:
-                    all_results.extend({
-                        "instructions": ["FAILED BATCH"]
-                    })
-                else:
-                    batch_result = next(generator.process(batch))
-                    all_results.extend(batch_result)
-            except (RuntimeError, ValueError, TypeError) as e:
-                print(
-                    f"Error processing batch {i//self.batch_size + 1}: {str(e)}")
-                # Add default results for the failed batch
-                default_result = {
-                    "instructions": ["FAILED BATCH"]
-                }
-                all_results.extend([default_result] * len(batch))
-
-        # Extract the generated conversation prompts with error handling
+        # Extract the generated conversation prompts
         next_questions = []
         for i, result in enumerate(all_results):
-            try:
-                next_questions.append(result["instructions"][0])
-            except (KeyError, IndexError, TypeError) as e:
-                print(f"Error extracting question from result {i}: {str(e)}")
-                next_questions.append(
-                    "Could not generate next question. Please try again.")
+            # Use safe access to handle any unexpected structure
+            instructions = result.get(
+                "instructions", ["Could not generate next question."])
+            next_questions.append(
+                instructions[0] if instructions else "Could not generate next question.")
 
         return next_questions, documents_used
