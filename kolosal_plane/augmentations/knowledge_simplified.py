@@ -21,63 +21,91 @@ class SimpleKnowledge(Knowledge):
                 document=document)
             self.conversation_starter_instruction = built_knowledge_instructions
 
-            chat_histories_document = self.generate_conversation_starter()
+            chat_histories = self.generate_conversation_starter()
 
-            document_data = [document] * len(chat_histories_document)
+            documents_data = [document] * len(chat_histories)
 
-            temporary_augmented_data = temporary_augmented_data.vstack(pl.DataFrame({
-                "chat_history": chat_histories_document,
-                "document": document_data
+            augmented_data = augmented_data.vstack(pl.DataFrame({
+                "chat_history": chat_histories,
+                "document": documents_data,
+                "response": [""] * len(chat_histories)
             }))
 
-         # Loop the conversation according to the instruction max conversation times to generate augmented data
+        # Loop the conversation according to the instruction max conversation times to generate augmented data
         for _ in tqdm(range(self.max_conversations)):
-            # Step 2 Generate LLM response: Could contained failed batch
-            built_chat_histories = self.build_chat_histories(
-                documents=temporary_augmented_data["document"].to_list(),
-                chat_histories=temporary_augmented_data["chat_history"].to_list())
+            # Find not answered dataset
+            temporary_augmented_data = augmented_data.filter(
+                pl.col("response") == "")
 
-            responses = self.generate_response_llm(
-                chat_histories=built_chat_histories)
+            # Remove the non answered dataset from the augmented_data
+            augmented_data = augmented_data.filter(
+                pl.col("response") != ""
+            )
 
-            # Step 3 Generate a followup question based on the chat history and Document
-            questions, documents = self.generate_next_conversation(
-                llm=self.llm_model,
-                chat_histories=temporary_augmented_data["chat_history"].to_list(
-                ),
-                responses=responses,
-                previous_documents=temporary_augmented_data["document"].to_list(
-                ))
+            # Batching for catchinge errors
+            batch_temporary_augmented_data = [temporary_augmented_data[i: i+self.batch_size]
+                                              for i in range(0, len(temporary_augmented_data), self.batch_size)]
 
-            # Step 4: Generate a new chat history dataset based on the questions asked: Could contained failed batch
-            generated_chat_histories = []
-            generated_chat_documents = []
-            for chat_history, response, question, document in zip(
-                temporary_augmented_data["chat_history"].to_list(),
-                responses,
-                questions,
-                documents
-            ):
-                # Append the new conversation to the chat history
-                new_chat_history = chat_history + [
-                    {"role": "assistant", "content": response},
-                    {"role": "user", "content": question}
-                ]
-                
-                # TODO: Remove the failed batch in the new chat history and documents
+            for batch in batch_temporary_augmented_data:
+                batch_status = True
+                try:
+                    # Step 2 Generate LLM response
+                    built_chat_histories = self.build_chat_histories(
+                        documents=batch["document"].to_list(
+                        ),
+                        chat_histories=batch["chat_history"].to_list())
 
-                generated_chat_histories.append(new_chat_history)
-                generated_chat_documents.append(document)
+                    responses = self.generate_response_llm(
+                        chat_histories=built_chat_histories)
 
-            # Save the augmented data
-            # TODO: Remove the failed batch in the temporary dataset
-            augmented_data = augmented_data.vstack(
-                copy.deepcopy(temporary_augmented_data))
+                    # Save the response to the built dataset
+                    augmented_data.vstack(pl.DataFrame({
+                        "chat_history": batch["chat_history"],
+                        "document": batch["document"],
+                        "response": responses
+                    }))
+                except Exception as e:
+                    print(
+                        f"Error in handling batch responses, omitting the batch from the main dataset: {e}")
+                    batch_status = False
 
-            # Update temporary data for the next iteration
-            temporary_augmented_data = pl.DataFrame({
-                "chat_history": generated_chat_histories,
-                "document": generated_chat_documents
-            })
+                # Step 3 Generate a followup question based on the chat history and Document
+                if batch_status:
+                    try:
+                        questions, documents = self.generate_next_conversation(
+                            llm=self.llm_model,
+                            chat_histories=batch["chat_history"].to_list(
+                            ),
+                            responses=responses,
+                            previous_documents=batch["document"].to_list(
+                            ))
+
+                        # Step 4: Generate a new chat history dataset based on the questions asked
+                        generated_chat_histories = []
+                        generated_chat_documents = []
+                        for chat_history, response, question, document in zip(
+                            batch["chat_history"].to_list(),
+                            responses,
+                            questions,
+                            documents
+                        ):
+                            # Append the new conversation to the chat history
+                            new_chat_history = chat_history + [
+                                {"role": "assistant", "content": response},
+                                {"role": "user", "content": question}
+                            ]
+
+                        generated_chat_histories.append(new_chat_history)
+                        generated_chat_documents.append(document)
+
+                        # Save the new question and documents in the main dataset
+                        augmented_data = augmented_data.vstack(pl.DataFrame({
+                            "chat_history": generated_chat_histories,
+                            "document": generated_chat_documents,
+                            "response": [""] * len(generated_chat_histories)
+                        }))
+                    except Exception as e:
+                        print(
+                            f"Error in handling batch followup questions: {e}")
 
         return augmented_data
