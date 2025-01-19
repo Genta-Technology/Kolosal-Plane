@@ -63,7 +63,7 @@ class SimpleKnowledge(Knowledge):
 
                     # Save the response to the built dataset
                     augmented_data = augmented_data.vstack(pl.DataFrame({
-                        "chat_history": batch["chat_history"],
+                        "chat_history": built_chat_histories,
                         "document": batch["document"],
                         "response": responses
                     }))
