@@ -1,0 +1,3 @@
+from .augmentations.knowledge_simplified import SimpleKnowledge
+from .augmentations.knowledge import Knowledge
+from .augmentations.personalization import Personalization
