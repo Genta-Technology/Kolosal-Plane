@@ -78,6 +78,19 @@ class Finetuning():
                  random_state: Optional[int] = 3407,
                  use_rslora: Optional[bool] = False,
                  loftq_config: Optional[any] = None):
+        """
+        Fine-tunes the model with the given parameters.
+        Args:
+            rank (Optional[int]): The rank for the PEFT model. Suggested values are 8, 16, 32, 64, 128. Default is 16.
+            lora_alpha (Optional[int]): The alpha parameter for LoRA. Default is 16.
+            lora_dropout (Optional[int]): The dropout rate for LoRA. Default is 0.
+            gradient_checkpointing (Optional[bool]): Whether to use gradient checkpointing. Default is True.
+            random_state (Optional[int]): The random seed for reproducibility. Default is 3407.
+            use_rslora (Optional[bool]): Whether to use rank stabilized LoRA. Default is False.
+            loftq_config (Optional[any]): Configuration for LoftQ. Default is None.
+        Returns:
+            None
+        """
 
         self.model = FastLanguageModel.get_peft_model(
             self.model,

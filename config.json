@@ -1,0 +1,16 @@
+{
+    "llm": {
+        "model_name": "gpt-4o",
+        "model_provider": "azure",
+        "model_parameters": {
+            "temperature": 0.7
+        }
+    },
+    "slm": {
+        "model_name": "gpt-4o-mini",
+        "model_provider": "azure",
+        "model_parameters": {
+            "temperature": 0.7
+        }
+    }
+}
