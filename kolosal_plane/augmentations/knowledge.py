@@ -244,7 +244,7 @@ class Knowledge(Augmentation):
 
         # Extract the generated conversation prompts
         next_questions = []
-        for i, result in enumerate(all_results):
+        for _, result in enumerate(all_results):
             # Use safe access to handle any unexpected structure
             instructions = result.get(
                 "instructions", ["Could not generate next question."])
