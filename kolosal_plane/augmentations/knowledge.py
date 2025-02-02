@@ -10,7 +10,7 @@ from distilabel.llms.base import AsyncLLM
 from distilabel.steps.tasks import SelfInstruct
 
 from kolosal_plane.augmentations.augmentation import Augmentation
-from kolosal_plane.augmentations.prompt.knowledge_prompt import CONVERSATION_STARTER_PROMPT, CONVERSATION_SYSTEM_PROMPT, NEXT_QUESTION_SAME_TOPIC_PROMPT, NEXT_QUESTION_DIFFERENT_TOPIC_PROMPT
+from kolosal_plane.augmentations.prompt.knowledge_prompt import CONVERSATION_STARTER_PROMPT, CONVERSATION_PROMPT, NEXT_QUESTION_SAME_TOPIC_PROMPT, NEXT_QUESTION_DIFFERENT_TOPIC_PROMPT
 
 
 class Knowledge(Augmentation):
@@ -151,8 +151,9 @@ class Knowledge(Augmentation):
         return CONVERSATION_STARTER_PROMPT.format(instruction=self.conversation_starter_instruction,
                                                   document=document)
 
-    def build_knowledge_system(self,
-                               document: str) -> str:
+    def build_knowledge_user(self,
+                               document: str,
+                               user_query: str) -> str:
         """
         Builds the instruction for generating knowledge-based conversations.
         Args:
@@ -160,8 +161,9 @@ class Knowledge(Augmentation):
         Returns:
             str: The instruction for generating knowledge-based conversations.
         """
-        return CONVERSATION_SYSTEM_PROMPT.format(instruction=self.conversation_personalization_instruction,
-                                                 document=document)
+        return CONVERSATION_PROMPT.format(instruction=self.conversation_personalization_instruction,
+                                                 document=document,
+                                                 user_query=user_query)
 
     def build_chat_histories(self,
                              documents: List[str],
@@ -177,12 +179,13 @@ class Knowledge(Augmentation):
         """
         built_chat_histories = []
         for document, chat_history in zip(documents, chat_histories):
-            # Built the system prompt based on the document and instruction
-            built_system = [{"role": "system", "content": self.build_knowledge_system(
-                document=document)}]
+            # Built the user prompt based on the document and instruction
+            built_user = [{"role": "user", "content": self.build_knowledge_user(
+                document=document,
+                user_query=chat_history[-1]["content"])}]
 
             # Insert the system prompt at the beginning of the chat history
-            chat_history = built_system + chat_history
+            chat_history = chat_history[:-1] + built_user
 
             # Append the built chat history to the list
             built_chat_histories.append(chat_history)

@@ -34,7 +34,7 @@ class SimpleKnowledge(Knowledge):
         # Loop the conversation according to the instruction max conversation times to generate augmented data
         is_lasts = False
         for count in tqdm(range(self.max_conversations)):
-            if count == self.max_conversations:
+            if count == self.max_conversations - 1:
                 is_lasts = True
             # Find not answered dataset
             temporary_augmented_data = augmented_data.filter(
@@ -98,8 +98,8 @@ class SimpleKnowledge(Knowledge):
                                 {"role": "user", "content": question}
                             ]
 
-                        generated_chat_histories.append(new_chat_history)
-                        generated_chat_documents.append(document)
+                            generated_chat_histories.append(new_chat_history)
+                            generated_chat_documents.append(document)
 
                         # Save the new question and documents in the main dataset
                         augmented_data = augmented_data.vstack(pl.DataFrame({

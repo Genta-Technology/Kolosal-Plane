@@ -4,8 +4,10 @@ CONVERSATION_STARTER_PROMPT = """Conversation starter instruction: {instruction}
 Relevant document: {document}
 """
 
-CONVERSATION_SYSTEM_PROMPT = """Your main instruction is as follows: {instruction}
-Relevant document: {document}"""
+CONVERSATION_PROMPT = """Your main instruction is as follows: {instruction}
+Relevant document: {document}
+
+User query: {user_query}"""
 
 NEXT_QUESTION_SAME_TOPIC_PROMPT = """Based on this chat history between the user and AI, your task is to generate a followup question that a user might ask
 {chat_history}
