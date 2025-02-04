@@ -92,6 +92,195 @@ def create_model(provider,
         return None
 
 
+def setting_col():
+    st.subheader("Settings")
+
+    # --- LLM Provider Selection ---
+    with st.form("llm_provider_form"):
+        llm_option = st.radio(
+            "Select LLM Provider:",
+            ["AzureOpenAI", "OpenAI", "Anthropics", "Fireworks", "Custom"],
+            key="llm_option"
+        )
+        llm_submit = st.form_submit_button("Confirm LLM Provider")
+        if llm_submit:
+            st.session_state.llm_option_confirmed = llm_option
+            st.success(f"LLM Provider '{llm_option}' confirmed!")
+
+    # Show LLM configuration inputs only after provider confirmation
+    if "llm_option_confirmed" in st.session_state:
+        st.markdown("#### LLM Configuration")
+        llm_config = {}
+        if st.session_state.llm_option_confirmed == "AzureOpenAI":
+            llm_config['base_url'] = st.text_input(
+                "LLM Base URL", key="llm_AzureOpenAI_base_url")
+            llm_config['api_key'] = st.text_input(
+                "LLM Azure API Key", type="password", key="llm_AzureOpenAI_api_key")
+            llm_config['api_version'] = st.text_input(
+                "LLM Azure API Version", key="llm_AzureOpenAI_api_version")
+            llm_config['model'] = st.text_input(
+                "LLM Deployment Name", key="llm_AzureOpenAI_model")
+        elif st.session_state.llm_option_confirmed == "Custom":
+            llm_config['base_url'] = st.text_input(
+                "LLM Base URL", key="llm_Custom_base_url")
+            llm_config['api_key'] = st.text_input(
+                "LLM API Key", type="password", key="llm_Custom_api_key")
+            llm_config['model'] = st.text_input(
+                "LLM Model Name", key="llm_Custom_model")
+        else:
+            llm_config['api_key'] = st.text_input(
+                f"LLM {st.session_state.llm_option_confirmed} API Key",
+                type="password",
+                key=f"llm_{st.session_state.llm_option_confirmed}_api_key"
+            )
+            llm_config['model'] = st.text_input(
+                "LLM Model Name", key=f"llm_{st.session_state.llm_option_confirmed}_model")
+    else:
+        st.info("Please confirm an LLM Provider to see its configuration fields.")
+
+    st.divider()
+
+    # --- SLM Provider Selection ---
+    with st.form("slm_provider_form"):
+        slm_option = st.radio(
+            "Select SLM Provider:",
+            ["AzureOpenAI", "OpenAI", "Anthropics", "Fireworks", "Custom"],
+            key="slm_option"
+        )
+        slm_submit = st.form_submit_button("Confirm SLM Provider")
+        if slm_submit:
+            st.session_state.slm_option_confirmed = slm_option
+            st.success(f"SLM Provider '{slm_option}' confirmed!")
+
+    # Show SLM configuration inputs only after provider confirmation
+    if "slm_option_confirmed" in st.session_state:
+        st.markdown("#### SLM Configuration")
+        slm_config = {}
+        if st.session_state.slm_option_confirmed == "AzureOpenAI":
+            slm_config['base_url'] = st.text_input(
+                "SLM Base URL", key="slm_AzureOpenAI_base_url")
+            slm_config['api_key'] = st.text_input(
+                "SLM Azure API Key", type="password", key="slm_AzureOpenAI_api_key")
+            slm_config['api_version'] = st.text_input(
+                "SLM Azure API Version", key="slm_AzureOpenAI_api_version")
+            slm_config['model'] = st.text_input(
+                "SLM Deployment Name", key="slm_AzureOpenAI_model")
+        elif st.session_state.slm_option_confirmed == "Custom":
+            slm_config['base_url'] = st.text_input(
+                "SLM Base URL", key="slm_Custom_base_url")
+            slm_config['api_key'] = st.text_input(
+                "SLM API Key", type="password", key="slm_Custom_api_key")
+            slm_config['model'] = st.text_input(
+                "SLM Model Name", key="slm_Custom_model")
+        else:
+            slm_config['api_key'] = st.text_input(
+                f"SLM {st.session_state.slm_option_confirmed} API Key",
+                type="password",
+                key=f"slm_{st.session_state.slm_option_confirmed}_api_key"
+            )
+            slm_config['model'] = st.text_input(
+                "SLM Model Name", key=f"slm_{st.session_state.slm_option_confirmed}_model")
+    else:
+        st.info("Please confirm an SLM Provider to see its configuration fields.")
+
+    st.divider()
+
+    # --- Model Parameters (always visible) ---
+    max_tokens = st.number_input(
+        "Max Tokens per Response", value=2048, min_value=1, key="max_tokens")
+    llm_temperature = st.slider(
+        "LLM Temperature", 0.0, 2.0, 0.8, key="llm_temp")
+    slm_temperature = st.slider(
+        "SLM Temperature", 0.0, 2.0, 0.8, key="slm_temp")
+
+    # --- Update Models ---
+    if st.button("Update Settings"):
+        # Ensure both providers have been confirmed
+        if "llm_option_confirmed" not in st.session_state or "slm_option_confirmed" not in st.session_state:
+            st.error(
+                "Please confirm both LLM and SLM Providers before updating settings.")
+            return
+
+        # Create the models using your `create_model` function
+        st.session_state.llm = create_model(
+            provider=st.session_state.llm_option_confirmed,
+            max_tokens=max_tokens,
+            temperature=llm_temperature,
+            **llm_config
+        )
+        st.session_state.slm = create_model(
+            provider=st.session_state.slm_option_confirmed,
+            max_tokens=max_tokens,
+            temperature=slm_temperature,
+            **slm_config
+        )
+
+        if st.session_state.llm and st.session_state.slm:
+            st.success("Models initialized successfully!")
+        else:
+            st.error("Failed to initialize models – check parameters")
+
+
+def prompt_col():
+    st.subheader("Prompts")
+    with st.form("prompts_form"):
+        conversation_starter_instruction = st.text_area(
+            "Conversation Starter Topic",
+            height=200,
+            key="starter_inst"
+        )
+        conversation_personalization_instruction = st.text_area(
+            "Personalization Instructions",
+            height=200,
+            key="personal_inst"
+        )
+        system_prompt = st.text_area(
+            "System Prompt",
+            height=200,
+            key="sys_prompt"
+        )
+        if st.form_submit_button("Update Prompts"):
+            st.session_state.conversation_starter_instruction = conversation_starter_instruction
+            st.session_state.conversation_personalization_instruction = conversation_personalization_instruction
+            st.session_state.system_prompt = system_prompt
+
+
+def documents_col():
+    st.subheader("Documents")
+    uploaded_file = st.file_uploader(
+        "Upload CSV (optional)",
+        type=["csv"],
+        help="Upload a CSV file. We'll use the first column and rename it to 'Documents'",
+        key="csv_upload"
+    )
+
+    if st.button("Load CSV", key="load_csv_button"):
+        if uploaded_file is not None:
+            try:
+                uploaded_df = pd.read_csv(uploaded_file)
+                if not uploaded_df.empty:
+                    first_column = uploaded_df.iloc[:, 0]
+                    st.session_state.documents_df = pd.DataFrame(
+                        {"Documents": first_column})
+                    st.success(
+                        f"Loaded {len(st.session_state.documents_df)} documents from CSV")
+                else:
+                    st.error("Uploaded CSV is empty")
+            except Exception as e:
+                st.error(f"Error reading CSV: {str(e)}")
+        else:
+            st.error("Please upload a CSV file first")
+
+    st.data_editor(
+        st.session_state.documents_df,
+        num_rows="dynamic",
+        column_config={"Documents": "Document"},
+        height=400,
+        key="documents_editor",
+        use_container_width=True
+    )
+
+
 def augmentation_interface():
     st.write("Synthetic data generation using LLM for fine-tuning SLM")
 
@@ -102,158 +291,19 @@ def augmentation_interface():
     # Left Column: Settings (LLM/SLM configuration)
     # --------------------
     with col_settings:
-        st.subheader("Settings")
-        with st.form("settings_form"):
-            # --- LLM Configuration ---
-            llm_option = st.radio(
-                "Select LLM:",
-                ["AzureOpenAI", "OpenAI", "Anthropics", "Fireworks", "Custom"],
-                key="llm_option"
-            )
-            llm_config = {}
-            if llm_option == "AzureOpenAI":
-                llm_config['base_url'] = st.text_input(
-                    "LLM Base URL", key="llm_AzureOpenAI_base_url")
-                llm_config['api_key'] = st.text_input(
-                    "LLM Azure API Key", type="password", key="llm_AzureOpenAI_api_key")
-                llm_config['api_version'] = st.text_input(
-                    "LLM Azure API Version", key="llm_AzureOpenAI_api_version")
-                llm_config['model'] = st.text_input(
-                    "LLM Deployment Name", key="llm_AzureOpenAI_model")
-            elif llm_option == "Custom":
-                llm_config['base_url'] = st.text_input(
-                    "LLM Base URL", key="llm_Custom_base_url")
-                llm_config['api_key'] = st.text_input(
-                    "LLM API Key", type="password", key="llm_Custom_api_key")
-                llm_config['model'] = st.text_input(
-                    "LLM Model Name", key="llm_Custom_model")
-            else:
-                llm_config['api_key'] = st.text_input(
-                    f"LLM {llm_option} API Key", type="password", key=f"llm_{llm_option}_api_key")
-                llm_config['model'] = st.text_input(
-                    "LLM Model Name", key=f"llm_{llm_option}_model")
-
-            st.divider()
-
-            # --- SLM Configuration ---
-            slm_option = st.radio(
-                "Select SLM:",
-                ["AzureOpenAI", "OpenAI", "Anthropics", "Fireworks", "Custom"],
-                key="slm_option"
-            )
-            slm_config = {}
-            if slm_option == "AzureOpenAI":
-                slm_config['base_url'] = st.text_input(
-                    "SLM Base URL", key="slm_AzureOpenAI_base_url")
-                slm_config['api_key'] = st.text_input(
-                    "SLM Azure API Key", type="password", key="slm_AzureOpenAI_api_key")
-                slm_config['api_version'] = st.text_input(
-                    "SLM Azure API Version", key="slm_AzureOpenAI_api_version")
-                slm_config['model'] = st.text_input(
-                    "SLM Deployment Name", key="slm_AzureOpenAI_model")
-            elif slm_option == "Custom":
-                slm_config['base_url'] = st.text_input(
-                    "SLM Base URL", key="slm_Custom_base_url")
-                slm_config['api_key'] = st.text_input(
-                    "SLM API Key", type="password", key="slm_Custom_api_key")
-                slm_config['model'] = st.text_input(
-                    "SLM Model Name", key="slm_Custom_model")
-            else:
-                slm_config['api_key'] = st.text_input(
-                    f"SLM {slm_option} API Key", type="password", key=f"slm_{slm_option}_api_key")
-                slm_config['model'] = st.text_input(
-                    "SLM Model Name", key=f"slm_{slm_option}_model")
-
-            st.divider()
-
-            # --- Model Parameters ---
-            max_tokens = st.number_input(
-                "Max Tokens per Response", value=2048, min_value=1, key="max_tokens")
-            llm_temperature = st.slider(
-                "LLM Temperature", 0.0, 2.0, 0.8, key="llm_temp")
-            slm_temperature = st.slider(
-                "SLM Temperature", 0.0, 2.0, 0.8, key="slm_temp")
-
-            if st.form_submit_button("Update Settings"):
-                st.session_state.llm = create_model(
-                    provider=llm_option,
-                    max_tokens=max_tokens,
-                    temperature=llm_temperature,
-                    **llm_config
-                )
-                st.session_state.slm = create_model(
-                    provider=slm_option,
-                    max_tokens=max_tokens,
-                    temperature=slm_temperature,
-                    **slm_config
-                )
-                if st.session_state.llm and st.session_state.slm:
-                    st.success("Models initialized successfully!")
-                else:
-                    st.error("Failed to initialize models – check parameters")
+        setting_col()
 
     # --------------------
     # Middle Column: Prompts
     # --------------------
     with col_prompts:
-        st.subheader("Prompts")
-        with st.form("prompts_form"):
-            conversation_starter_instruction = st.text_area(
-                "Conversation Starter Topic",
-                height=200,
-                key="starter_inst"
-            )
-            conversation_personalization_instruction = st.text_area(
-                "Personalization Instructions",
-                height=200,
-                key="personal_inst"
-            )
-            system_prompt = st.text_area(
-                "System Prompt",
-                height=200,
-                key="sys_prompt"
-            )
-            if st.form_submit_button("Update Prompts"):
-                st.session_state.conversation_starter_instruction = conversation_starter_instruction
-                st.session_state.conversation_personalization_instruction = conversation_personalization_instruction
-                st.session_state.system_prompt = system_prompt
+        prompt_col()
 
     # --------------------
     # Right Column: Documents (CSV uploader and Data Editor)
     # --------------------
     with col_documents:
-        st.subheader("Documents")
-        uploaded_file = st.file_uploader(
-            "Upload CSV (optional)",
-            type=["csv"],
-            help="Upload a CSV file. We'll use the first column and rename it to 'Documents'",
-            key="csv_upload"
-        )
-        if st.button("Load CSV", key="load_csv_button"):
-            if uploaded_file is not None:
-                try:
-                    uploaded_df = pd.read_csv(uploaded_file)
-                    if not uploaded_df.empty:
-                        first_column = uploaded_df.iloc[:, 0]
-                        st.session_state.documents_df = pd.DataFrame(
-                            {"Documents": first_column})
-                        st.success(
-                            f"Loaded {len(st.session_state.documents_df)} documents from CSV")
-                    else:
-                        st.error("Uploaded CSV is empty")
-                except Exception as e:
-                    st.error(f"Error reading CSV: {str(e)}")
-            else:
-                st.error("Please upload a CSV file first")
-
-        st.data_editor(
-            st.session_state.documents_df,
-            num_rows="dynamic",
-            column_config={"Documents": "Document"},
-            height=400,
-            key="documents_editor",
-            use_container_width=True
-        )
+        documents_col()
 
     # --------------------
     # Below the Columns: Additional Parameters and Data Generation
