@@ -70,9 +70,15 @@ class SimpleKnowledge(Knowledge):
                         chat_histories=original_chat_histories
                     )
 
-                    # Generate LLM responses using the built chat histories.
-                    responses = self.generate_response_llm(
-                        chat_histories=built_chat_histories)
+                    responses = []
+
+                    # Generate LLM or thinking responses using the built chat histories.
+                    if self.thinking_model:
+                        response = self.generate_response_thinking(
+                            chat_histories=built_chat_histories)
+                    else:
+                        responses = self.generate_response_llm(
+                            chat_histories=built_chat_histories)
 
                     # Save the response along with the original chat histories.
                     augmented_data = augmented_data.vstack(pl.DataFrame({

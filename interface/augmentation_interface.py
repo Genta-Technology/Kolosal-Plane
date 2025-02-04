@@ -344,13 +344,16 @@ def augmentation_interface():
             )
 
             with st.spinner("Generating data..."):
-                df = pipeline.augmentate()
+                response = pipeline.augmentate()
 
-            json_buf = io.StringIO()
-            df.to_json(json_buf, orient="records")
+            # Convert the response to a dictionary and then to JSON
+            json_buffer = io.StringIO()
+            response.write_json(json_buffer)  # Use the same working method
+            json_content = json_buffer.getvalue()
+            
             st.download_button(
                 "Download Dataset",
-                data=json_buf.getvalue(),
+                data=json_content,
                 file_name="synthetic_data.json",
                 mime="application/json"
             )

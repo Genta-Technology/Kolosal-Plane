@@ -17,6 +17,7 @@ class Augmentation():
     batch_size: Optional[int]
     llm_model: Optional[AsyncLLM]
     slm_model: Optional[AsyncLLM]
+    thinking_model: Optional[AsyncLLM]
 
     def __init__(self,
                  conversation_starter_instruction: str,
@@ -29,7 +30,8 @@ class Augmentation():
                  # Limit the request per second
                  batch_size: Optional[int] = 16,
                  llm_model: Optional[AsyncLLM] = None,
-                 slm_model: Optional[AsyncLLM] = None):
+                 slm_model: Optional[AsyncLLM] = None,
+                 thinking_model: Optional[AsyncLLM] = None):
 
         self.conversation_starter_instruction = conversation_starter_instruction
         self.conversation_personalization_instruction = conversation_personalization_instruction
@@ -40,6 +42,7 @@ class Augmentation():
         self.batch_size = batch_size
         self.llm_model = llm_model
         self.slm_model = slm_model
+        self.thinking_model = thinking_model
 
         # Automatically load LLM and SLM models if not provided
         if self.llm_model is None:
@@ -112,6 +115,22 @@ class Augmentation():
         """
 
         return self.generate_response(self.llm_model, chat_histories, **kwargs)
+    
+    def generate_response_thinking(self, chat_histories: List[List[Dict[str, str]]], **kwargs) -> List[str]:
+        """
+        Generates response thinking using a thinking model.
+        This method processes chat histories through the thinking model to generate responses.
+        Args:
+            chat_histories (List[List[Dict[str, str]]]): A list of chat history sequences, where each sequence
+                contains dictionaries with message content and metadata.
+            **kwargs: Additional keyword arguments to pass to the generate_response method.
+        Returns:
+            List[str]: A list of generated responses from the thinking model.
+        See Also:
+            generate_response: The base method used for generating responses.
+        """
+        
+        return self.generate_response(self.thinking_model, chat_histories, **kwargs)
 
     def generate_response_slm(self, chat_histories: List[List[Dict[str, str]]], **kwargs) -> List[str]:
         """
