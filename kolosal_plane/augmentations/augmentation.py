@@ -90,7 +90,7 @@ class Augmentation():
             # Transform the list of strings into chat history format, ignore system prompt if None
             chat_history = [[{"role": "user", "content": starter}] if self.system_prompt is None
                             else [{"role": "system", "content": self.system_prompt}, {"role": "user", "content": starter}]
-                            for starter in conversation_starters]
+                            for starter in conversation_starters[:min(len(conversation_starters), self.conversation_starter_count)]]
 
             return chat_history
 
