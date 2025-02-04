@@ -185,6 +185,57 @@ def setting_col():
 
     st.divider()
 
+    # --- Optional Thinking Model Configuration ---
+    enable_tm = st.toggle("Enable Thinking Model (optional)", key="enable_tm")
+    # Initialize an empty dictionary for Thinking Model config
+    tm_config = {}
+    if enable_tm:
+        with st.form("tm_provider_form"):
+            tm_option = st.radio(
+                "Select Thinking Model Provider:",
+                ["AzureOpenAI", "OpenAI", "Anthropics", "Fireworks", "Custom"],
+                key="tm_option"
+            )
+            tm_submit = st.form_submit_button("Confirm Thinking Model Provider")
+            if tm_submit:
+                st.session_state.tm_option_confirmed = tm_option
+                st.success(f"Thinking Model Provider '{tm_option}' confirmed!")
+
+        # Show Thinking Model configuration inputs only after provider confirmation
+        if "tm_option_confirmed" in st.session_state:
+            st.markdown("#### Thinking Model Configuration")
+            if st.session_state.tm_option_confirmed == "AzureOpenAI":
+                tm_config['base_url'] = st.text_input(
+                    "Thinking Model Base URL", key="tm_AzureOpenAI_base_url")
+                tm_config['api_key'] = st.text_input(
+                    "Thinking Model Azure API Key", type="password", key="tm_AzureOpenAI_api_key")
+                tm_config['api_version'] = st.text_input(
+                    "Thinking Model Azure API Version", key="tm_AzureOpenAI_api_version")
+                tm_config['model'] = st.text_input(
+                    "Thinking Model Deployment Name", key="tm_AzureOpenAI_model")
+            elif st.session_state.tm_option_confirmed == "Custom":
+                tm_config['base_url'] = st.text_input(
+                    "Thinking Model Base URL", key="tm_Custom_base_url")
+                tm_config['api_key'] = st.text_input(
+                    "Thinking Model API Key", type="password", key="tm_Custom_api_key")
+                tm_config['model'] = st.text_input(
+                    "Thinking Model Model Name", key="tm_Custom_model")
+            else:
+                tm_config['api_key'] = st.text_input(
+                    f"Thinking Model {st.session_state.tm_option_confirmed} API Key",
+                    type="password",
+                    key=f"tm_{st.session_state.tm_option_confirmed}_api_key"
+                )
+                tm_config['model'] = st.text_input(
+                    "Thinking Model Model Name", key=f"tm_{st.session_state.tm_option_confirmed}_model")
+            tm_temperature = st.slider(
+                "Thinking Model Temperature", 0.0, 2.0, 0.8, key="tm_temp"
+            )
+        else:
+            st.info("Please confirm a Thinking Model Provider to see its configuration fields.")
+
+    st.divider()
+
     # --- Model Parameters (always visible) ---
     max_tokens = st.number_input(
         "Max Tokens per Response", value=2048, min_value=1, key="max_tokens")
@@ -193,12 +244,13 @@ def setting_col():
     slm_temperature = st.slider(
         "SLM Temperature", 0.0, 2.0, 0.8, key="slm_temp")
 
+    st.divider()
+
     # --- Update Models ---
     if st.button("Update Settings"):
-        # Ensure both providers have been confirmed
+        # Ensure both required providers have been confirmed
         if "llm_option_confirmed" not in st.session_state or "slm_option_confirmed" not in st.session_state:
-            st.error(
-                "Please confirm both LLM and SLM Providers before updating settings.")
+            st.error("Please confirm both LLM and SLM Providers before updating settings.")
             return
 
         # Create the models using your `create_model` function
@@ -215,10 +267,32 @@ def setting_col():
             **slm_config
         )
 
-        if st.session_state.llm and st.session_state.slm:
+        models_initialized = True
+        if not st.session_state.llm or not st.session_state.slm:
+            models_initialized = False
+            st.error("Failed to initialize LLM and/or SLM – check parameters.")
+
+        # Initialize the optional Thinking Model only if enabled
+        if enable_tm:
+            if "tm_option_confirmed" not in st.session_state:
+                st.error("Please confirm Thinking Model Provider before updating settings.")
+                return
+            # tm_temperature was set only if a provider was confirmed
+            st.session_state.thinking = create_model(
+                provider=st.session_state.tm_option_confirmed,
+                max_tokens=max_tokens,
+                temperature=tm_temperature,
+                **tm_config
+            )
+            if not st.session_state.thinking:
+                models_initialized = False
+                st.error("Failed to initialize Thinking Model – check parameters.")
+            else:
+                st.success("Thinking Model initialized successfully!")
+
+        if models_initialized:
             st.success("Models initialized successfully!")
-        else:
-            st.error("Failed to initialize models – check parameters")
+
 
 
 def prompt_col():
@@ -337,6 +411,7 @@ def augmentation_interface():
                 system_prompt=st.session_state.get("sys_prompt", ""),
                 llm_model=st.session_state.llm,
                 slm_model=st.session_state.slm,
+                thinking_model=st.session_state.thinking,
                 conversation_starter_count=conv_count,
                 max_conversations=max_conv_length,
                 batch_size=batch_size,
