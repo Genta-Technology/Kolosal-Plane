@@ -74,7 +74,7 @@ class SimpleKnowledge(Knowledge):
 
                     # Generate LLM or thinking responses using the built chat histories.
                     if self.thinking_model:
-                        response = self.generate_response_thinking(
+                        responses = self.generate_response_thinking(
                             chat_histories=built_chat_histories)
                     else:
                         responses = self.generate_response_llm(
