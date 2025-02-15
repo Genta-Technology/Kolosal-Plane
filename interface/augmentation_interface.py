@@ -14,6 +14,8 @@ if "llm" not in st.session_state:
     st.session_state.llm = None
 if "slm" not in st.session_state:
     st.session_state.slm = None
+if "thinking" not in st.session_state:
+    st.session_state.thinking = None
 if "documents_df" not in st.session_state:
     st.session_state.documents_df = pd.DataFrame(columns=["Documents"])
 
@@ -100,7 +102,7 @@ def create_model(provider,
 
 def setting_col_beta_test():
     st.subheader("Settings")
-    st.text("Using OpenAI")
+    st.text("Using OpenAI GPT4o")
 
     # Setting LLM
     llm_config = {}
@@ -108,34 +110,31 @@ def setting_col_beta_test():
     llm_config['api_key'] = os.getenv("AZURE_OPENAI_API_KEY")
     llm_config['api_version'] = os.getenv("AZURE_API_VERSION")
     llm_config['model'] = "gpt-4o"
-    
-    
-    
+
     max_tokens = st.number_input(
         "Max Tokens per Response", value=2048, min_value=1, key="max_tokens")
     llm_temperature = st.slider(
         "LLM Temperature", 0.0, 2.0, 0.8, key="llm_temp")
-    
+
     st.divider()
 
     # --- Update Models ---
     if st.button("Update Settings"):
-        # Ensure both required providers have been confirmed
-        if "llm_option_confirmed" not in st.session_state or "slm_option_confirmed" not in st.session_state:
-            st.error(
-                "Please confirm both LLM and SLM Providers before updating settings.")
-            return
-
         # Create the models using your `create_model` function
         st.session_state.llm = create_model(
-            provider=st.session_state.llm_option_confirmed,
+            provider="AzureOpenAI",
             max_tokens=max_tokens,
             temperature=llm_temperature,
             **llm_config
         )
-        
+
         # As SLM is not used in beta test, let it be setting LLM
-        st.session_state.slm = st.session_state.llm
+        st.session_state.slm = create_model(
+            provider="AzureOpenAI",
+            max_tokens=max_tokens,
+            temperature=llm_temperature,
+            **llm_config
+        )
 
         models_initialized = True
         if not st.session_state.llm or not st.session_state.slm:
@@ -144,6 +143,7 @@ def setting_col_beta_test():
 
         if models_initialized:
             st.success("Models initialized successfully!")
+
 
 def setting_col():
     st.subheader("Settings")
@@ -447,7 +447,7 @@ def augmentation_interface():
     batch_size = st.number_input("Batch Size", 1, 256, 16, key="batch_size")
 
     if st.button("Generate Synthetic Data", key="generate_data"):
-        if not st.session_state.llm or not st.session_state.slm:
+        if not st.session_state.llm:
             st.error("Configure models in Settings first!")
             return
 
@@ -467,7 +467,7 @@ def augmentation_interface():
                     "conversation_personalization_instruction", ""),
                 system_prompt=st.session_state.get("sys_prompt", ""),
                 llm_model=st.session_state.llm,
-                slm_model=st.session_state.slm,
+                slm_model=st.session_state.llm,
                 thinking_model=st.session_state.thinking,
                 conversation_starter_count=conv_count,
                 max_conversations=max_conv_length,
