@@ -1,6 +1,10 @@
+"""UI Kolosal Augmentation"""
+import os
 import io
 import streamlit as st
 import pandas as pd
+
+from dotenv import load_dotenv
 
 from distilabel.llms import AzureOpenAILLM, OpenAILLM, AnthropicLLM
 from kolosal_plane import SimpleKnowledge  # Ensure the module name is correct
@@ -12,6 +16,8 @@ if "slm" not in st.session_state:
     st.session_state.slm = None
 if "documents_df" not in st.session_state:
     st.session_state.documents_df = pd.DataFrame(columns=["Documents"])
+
+load_dotenv()
 
 
 def create_model(provider,
@@ -91,6 +97,53 @@ def create_model(provider,
         st.error(f"Error creating model: {str(e)}")
         return None
 
+
+def setting_col_beta_test():
+    st.subheader("Settings")
+    st.text("Using OpenAI")
+
+    # Setting LLM
+    llm_config = {}
+    llm_config['base_url'] = os.getenv("AZURE_OPENAI_ENDPOINT")
+    llm_config['api_key'] = os.getenv("AZURE_OPENAI_API_KEY")
+    llm_config['api_version'] = os.getenv("AZURE_API_VERSION")
+    llm_config['model'] = "gpt-4o"
+    
+    
+    
+    max_tokens = st.number_input(
+        "Max Tokens per Response", value=2048, min_value=1, key="max_tokens")
+    llm_temperature = st.slider(
+        "LLM Temperature", 0.0, 2.0, 0.8, key="llm_temp")
+    
+    st.divider()
+
+    # --- Update Models ---
+    if st.button("Update Settings"):
+        # Ensure both required providers have been confirmed
+        if "llm_option_confirmed" not in st.session_state or "slm_option_confirmed" not in st.session_state:
+            st.error(
+                "Please confirm both LLM and SLM Providers before updating settings.")
+            return
+
+        # Create the models using your `create_model` function
+        st.session_state.llm = create_model(
+            provider=st.session_state.llm_option_confirmed,
+            max_tokens=max_tokens,
+            temperature=llm_temperature,
+            **llm_config
+        )
+        
+        # As SLM is not used in beta test, let it be setting LLM
+        st.session_state.slm = st.session_state.llm
+
+        models_initialized = True
+        if not st.session_state.llm or not st.session_state.slm:
+            models_initialized = False
+            st.error("Failed to initialize LLM and/or SLM – check parameters.")
+
+        if models_initialized:
+            st.success("Models initialized successfully!")
 
 def setting_col():
     st.subheader("Settings")
@@ -196,7 +249,8 @@ def setting_col():
                 ["AzureOpenAI", "OpenAI", "Anthropics", "Fireworks", "Custom"],
                 key="tm_option"
             )
-            tm_submit = st.form_submit_button("Confirm Thinking Model Provider")
+            tm_submit = st.form_submit_button(
+                "Confirm Thinking Model Provider")
             if tm_submit:
                 st.session_state.tm_option_confirmed = tm_option
                 st.success(f"Thinking Model Provider '{tm_option}' confirmed!")
@@ -232,7 +286,8 @@ def setting_col():
                 "Thinking Model Temperature", 0.0, 2.0, 0.8, key="tm_temp"
             )
         else:
-            st.info("Please confirm a Thinking Model Provider to see its configuration fields.")
+            st.info(
+                "Please confirm a Thinking Model Provider to see its configuration fields.")
 
     st.divider()
 
@@ -250,7 +305,8 @@ def setting_col():
     if st.button("Update Settings"):
         # Ensure both required providers have been confirmed
         if "llm_option_confirmed" not in st.session_state or "slm_option_confirmed" not in st.session_state:
-            st.error("Please confirm both LLM and SLM Providers before updating settings.")
+            st.error(
+                "Please confirm both LLM and SLM Providers before updating settings.")
             return
 
         # Create the models using your `create_model` function
@@ -275,7 +331,8 @@ def setting_col():
         # Initialize the optional Thinking Model only if enabled
         if enable_tm:
             if "tm_option_confirmed" not in st.session_state:
-                st.error("Please confirm Thinking Model Provider before updating settings.")
+                st.error(
+                    "Please confirm Thinking Model Provider before updating settings.")
                 return
             # tm_temperature was set only if a provider was confirmed
             st.session_state.thinking = create_model(
@@ -292,7 +349,6 @@ def setting_col():
 
         if models_initialized:
             st.success("Models initialized successfully!")
-
 
 
 def prompt_col():
@@ -365,7 +421,8 @@ def augmentation_interface():
     # Left Column: Settings (LLM/SLM configuration)
     # --------------------
     with col_settings:
-        setting_col()
+        # Use the beta test
+        setting_col_beta_test()
 
     # --------------------
     # Middle Column: Prompts
@@ -425,7 +482,7 @@ def augmentation_interface():
             json_buffer = io.StringIO()
             response.write_json(json_buffer)  # Use the same working method
             json_content = json_buffer.getvalue()
-            
+
             st.download_button(
                 "Download Dataset",
                 data=json_content,
