@@ -4,3 +4,4 @@ openai
 fastapi
 python-dotenv
 uvicorn
+streamlit
