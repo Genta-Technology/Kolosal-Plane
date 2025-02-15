@@ -4,5 +4,3 @@ openai
 fastapi
 python-dotenv
 uvicorn
-torch
-unsloth
