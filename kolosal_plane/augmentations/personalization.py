@@ -5,7 +5,7 @@ from typing import List, Dict
 import polars as pl
 from tqdm import tqdm
 
-from distilabel.models.llms.base import AsyncLLM
+from distilabel.llms.base import AsyncLLM
 from distilabel.steps.tasks import SelfInstruct
 
 from kolosal_plane.augmentations.augmentation import Augmentation

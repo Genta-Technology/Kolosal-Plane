@@ -3,7 +3,7 @@ from typing import Optional, List, Dict, Tuple
 
 import polars as pl
 
-from distilabel.models.llms.base import AsyncLLM
+from distilabel.llms.base import AsyncLLM
 from distilabel.steps.tasks import ChatGeneration, SelfInstruct
 
 from kolosal_plane.evaluation.evaluation_prompt import TEST_QUESTION_PROMPT
