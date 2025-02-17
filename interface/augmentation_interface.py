@@ -401,7 +401,7 @@ def documents_col():
         else:
             st.error("Please upload a CSV file first")
 
-    st.data_editor(
+    edited_df = st.data_editor(
         st.session_state.documents_df,
         num_rows="dynamic",
         column_config={"Documents": "Document"},
@@ -412,8 +412,6 @@ def documents_col():
     
     if st.button("Save Document", key="save_document_button"):
         if "documents_editor" in st.session_state:
-            # Get edited data from the data_editor's session state
-            edited_df = st.session_state.documents_editor["data"]
             # Update the main documents dataframe
             st.session_state.documents_df = edited_df
             st.success("Document changes saved successfully!")
