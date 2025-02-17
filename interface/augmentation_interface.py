@@ -468,7 +468,7 @@ def augmentation_interface():
                 system_prompt=st.session_state.get("sys_prompt", ""),
                 llm_model=st.session_state.llm,
                 slm_model=st.session_state.llm,
-                thinking_model=st.session_state.thinking,
+                thinking_model=st.session_state.llm,
                 conversation_starter_count=conv_count,
                 max_conversations=max_conv_length,
                 batch_size=batch_size,
