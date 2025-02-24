@@ -164,7 +164,7 @@ class Finetuning():
 
         # Combine system and user parts to form the complete instruction section.
         combined_instruction = (
-            "<|start_header_id|>system<|end_header_id|>\n\n"
+            # "<|start_header_id|>system<|end_header_id|>\n\n"
             "<|start_header_id|>user<|end_header_id|>\n\n"
         )
 
