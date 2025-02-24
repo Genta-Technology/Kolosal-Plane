@@ -80,15 +80,24 @@ class Finetuning():
             self.formatting_prompts, batched=True,)
 
     def finetune(self,
-                 rank: Optional[int] = 16,
-                 lora_alpha: Optional[int] = 16,
-                 lora_dropout: Optional[int] = 0,
-                 gradient_checkpointing: Optional[bool] = True,
-                 random_state: Optional[int] = 3407,
-                 use_rslora: Optional[bool] = False,
-                 loftq_config: Optional[any] = None):
+             rank: Optional[int] = 16,
+             lora_alpha: Optional[int] = 16,
+             lora_dropout: Optional[int] = 0,
+             gradient_checkpointing: Optional[bool] = True,
+             random_state: Optional[int] = 3407,
+             use_rslora: Optional[bool] = False,
+             loftq_config: Optional[any] = None,
+             epoch: Optional[int] = 1,
+             steps: Optional[int] = 60,
+             training_args: Optional[dict] = None):
         """
         Fine-tunes the model with the given parameters.
+
+        This function sets up a PEFT-modified model (using LoRA and optionally LoftQ)
+        and fine-tunes it using a specialized SFTTrainer. In this setup, the loss is computed
+        only on the assistant response tokens. The instruction part—which is now composed of both
+        system and user tokens—is masked out during loss computation.
+
         Args:
             rank (Optional[int]): The rank for the PEFT model. Suggested values are 8, 16, 32, 64, 128. Default is 16.
             lora_alpha (Optional[int]): The alpha parameter for LoRA. Default is 16.
@@ -96,25 +105,49 @@ class Finetuning():
             gradient_checkpointing (Optional[bool]): Whether to use gradient checkpointing. Default is True.
             random_state (Optional[int]): The random seed for reproducibility. Default is 3407.
             use_rslora (Optional[bool]): Whether to use rank stabilized LoRA. Default is False.
-            loftq_config (Optional[any]): Configuration for LoftQ. Default is None.
+            loftq_config (Optional[Any]): Configuration for LoftQ. Default is None.
+            epoch (Optional[int]): Number of epochs for fine-tuning. Default is 1.
+            steps (Optional[int]): Total number of training steps. Default is 60.
+            training_args (Optional[dict]): Additional training arguments to override the default TrainingArguments.
+                All parameters are optional and will be merged with the defaults.
+
         Returns:
             None
         """
 
+        # Prepare the model with PEFT modifications.
         self.model = FastLanguageModel.get_peft_model(
             self.model,
-            r=rank,  # Choose any number > 0 ! Suggested 8, 16, 32, 64, 128
+            r=rank,
             target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
-                            "gate_proj", "up_proj", "down_proj",],
+                            "gate_proj", "up_proj", "down_proj"],
             lora_alpha=lora_alpha,
-            lora_dropout=lora_dropout,  # Supports any, but = 0 is optimized
-            bias="none",    # Supports any, but = "none" is optimized
-            # [NEW] "unsloth" uses 30% less VRAM, fits 2x larger batch sizes!
-            # True or "unsloth" for very long context
+            lora_dropout=lora_dropout,
+            bias="none",
             use_gradient_checkpointing=gradient_checkpointing,
             random_state=random_state,
-            use_rslora=use_rslora,  # We support rank stabilized LoRA
-            loftq_config=loftq_config,  # And LoftQ
+            use_rslora=use_rslora,
+            loftq_config=loftq_config,
+        )
+
+        # Initialize training arguments, allowing for additional overrides.
+        args = TrainingArguments(
+            per_device_train_batch_size=2,
+            gradient_accumulation_steps=4,
+            warmup_steps=5,
+            num_train_epochs=epoch,
+            max_steps=steps,
+            learning_rate=2e-4,
+            fp16=not is_bfloat16_supported(),
+            bf16=is_bfloat16_supported(),
+            logging_steps=1,
+            optim="adamw_8bit",
+            weight_decay=0.01,
+            lr_scheduler_type="linear",
+            seed=3407,
+            output_dir="outputs",
+            report_to="none",
+            **(training_args or {})
         )
 
         trainer = SFTTrainer(
@@ -125,28 +158,19 @@ class Finetuning():
             max_seq_length=self.max_sequence,
             data_collator=DataCollatorForSeq2Seq(tokenizer=self.tokenizer),
             dataset_num_proc=2,
-            packing=False,  # Can make training 5x faster for short sequences.
-            args=TrainingArguments(
-                per_device_train_batch_size=2,
-                gradient_accumulation_steps=4,
-                warmup_steps=5,
-                # num_train_epochs = 1, # Set this for 1 full training run.
-                max_steps=60,
-                learning_rate=2e-4,
-                fp16=not is_bfloat16_supported(),
-                bf16=is_bfloat16_supported(),
-                logging_steps=1,
-                optim="adamw_8bit",
-                weight_decay=0.01,
-                lr_scheduler_type="linear",
-                seed=3407,
-                output_dir="outputs",
-                report_to="none",  # Use this for WandB etc
-            ),
+            packing=False,
+            args=args,
         )
+
+        # Combine system and user parts to form the complete instruction section.
+        combined_instruction = (
+            "<|start_header_id|>system<|end_header_id|>\n\n"
+            "<|start_header_id|>user<|end_header_id|>\n\n"
+        )
+
         trainer = train_on_responses_only(
             trainer,
-            instruction_part="<|start_header_id|>user<|end_header_id|>\n\n",
+            instruction_part=combined_instruction,
             response_part="<|start_header_id|>assistant<|end_header_id|>\n\n",
         )
         trainer.train()
