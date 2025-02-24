@@ -69,8 +69,8 @@ class Finetuning():
                                     {"role": "user", "content": row['input']},
                                     {"role": "assistant", "content": row['output']}]
 
-            # Store in the new list
-            modified_dataset.append({"conversations": new_chat_history})
+                # Store in the new list
+                modified_dataset.append({"conversations": new_chat_history})
 
         # Convert to a DataFrame
         modified_dataset = pd.DataFrame(modified_dataset)
