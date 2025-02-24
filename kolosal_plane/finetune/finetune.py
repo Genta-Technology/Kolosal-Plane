@@ -1,6 +1,6 @@
 """Finetuning LLM using Unsloth"""
 
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Union
 
 import pandas as pd
 from trl import SFTTrainer
@@ -33,7 +33,7 @@ class Finetuning():
 
     def load_dataset(self,
                      dataset: pd.DataFrame,
-                     dataset_type: str,
+                     dataset_type: Optional[str] = "",
                      ):
         """
         Load and modify the dataset.
@@ -49,26 +49,35 @@ class Finetuning():
         # Load and modify the dataset
         modified_dataset = []
 
-        for _, row in dataset.iterrows():
-            # Copy the existing messages
-            new_chat_history = row['chat_history'].copy()
+        # Save it to class dataset
+        if dataset_type == "simple_augmentation":
+            for _, row in dataset.iterrows():
+                # Copy the existing messages
+                new_chat_history = row['chat_history'].copy()
 
-            # Add response
-            new_chat_history.append(
-                {"role": "assistant", "content": row['response']})
+                # Add response
+                new_chat_history.append(
+                    {"role": "assistant", "content": row['response']})
+
+                # Store in the new list
+                modified_dataset.append({"conversations": new_chat_history})
+
+        else:
+            for _, row in dataset.iterrows():
+                # Copy the existing messages
+                new_chat_history = [{"role": "system", "content": row['instruction']},
+                                    {"role": "user", "content": row['input']},
+                                    {"role": "assistant", "content": row['output']}]
 
             # Store in the new list
             modified_dataset.append({"conversations": new_chat_history})
 
         # Convert to a DataFrame
         modified_dataset = pd.DataFrame(modified_dataset)
-
-        # Save it to class dataset
-        if dataset_type == "simple_augmentation":
-            self.dataset = Dataset.from_pandas(modified_dataset)
-            self.dataset = standardize_sharegpt(self.dataset)
-            self.dataset = self.dataset.map(
-                self.formatting_prompts, batched=True,)
+        self.dataset = Dataset.from_pandas(modified_dataset)
+        self.dataset = standardize_sharegpt(self.dataset)
+        self.dataset = self.dataset.map(
+            self.formatting_prompts, batched=True,)
 
     def finetune(self,
                  rank: Optional[int] = 16,
@@ -151,6 +160,45 @@ class Finetuning():
         """
 
         self.model.save_pretrained_gguf(path, self.tokenizer)
+
+    def push_model(self,
+                   model_repository: str,
+                   quantization: Union[str, List[str]],
+                   huggingface_token: str) -> None:
+        """
+        Push the model to Hugging Face Hub with specified quantization methods.
+        This method uploads the model to the Hugging Face Hub repository with the given 
+        quantization method(s). The model is converted to GGUF format before uploading.
+        Args:
+            model_repository (str): The name of the repository on Hugging Face Hub where 
+                the model will be pushed (format: "username/repo-name").
+            quantization (Union[str, List[str]]): Quantization method(s) to be applied. 
+                Can be a single string or a list of strings representing different 
+                quantization methods.
+            huggingface_token (str): Authentication token for Hugging Face Hub.
+        Returns:
+            None
+        Raises:
+            ValueError: If model_repository format is invalid or token is invalid.
+            ConnectionError: If there's an error connecting to Hugging Face Hub.
+        Example:
+            >>> model.push_model(
+            ...     "username/model-repo",
+            ...     ["q4_k_m", "q5_k_m"],
+            ...     "hf_xxxxx"
+            ... )
+        """
+
+        # Ensure quantization_method is a list
+        quantization_method = [quantization] if isinstance(
+            quantization, str) else quantization
+
+        self.model.push_to_hub_gguf(
+            model_repository,
+            self.tokenizer,
+            quantization_method=quantization_method,
+            token=huggingface_token,
+        )
 
     def formatting_prompts(self, dataset):
         """
