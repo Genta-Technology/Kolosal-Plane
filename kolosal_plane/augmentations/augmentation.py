@@ -1,5 +1,5 @@
 """Augmentation Class"""
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple
 
 from distilabel.models.llms.base import AsyncLLM
 from distilabel.steps.tasks import SelfInstruct, ChatGeneration, QualityScorer
@@ -50,7 +50,7 @@ class Augmentation():
         if self.slm_model is None:
             self.slm_model = get_slm()
 
-    def generate_conversation_starter(self, **kwargs) -> List[Dict[str, str]]:
+    def generate_conversation_starter(self, **kwargs) -> Tuple[List[Dict[str, str]], int, int]:
         """
         Generate conversation starters using the SelfInstruct instance.
         This method initializes a SelfInstruct instance with the provided language model and 
@@ -62,10 +62,13 @@ class Augmentation():
             List[Dict[str, str]]: A list of dictionaries representing the chat history, 
             where each dictionary contains the role ('user' or 'system') and the content 
             of the conversation starter.
+            int: The number of input tokens processed.
+            int: The number of output tokens generated.
         Raises:
             ValueError: If the result does not contain valid instructions.
             RuntimeError: If an error occurs while generating conversation starters.
         """
+        input_token_count, output_token_count = 0, 0
 
         try:
             # Initialize the SelfInstruct instance
@@ -84,6 +87,10 @@ class Augmentation():
 
             # Extract the 'instructions' from the result
             conversation_starters = result[0].get("instructions", [])
+            input_token_count += result[0].get("distilabel_metadata", {}).get(
+                "statistics_self_instruct_0", {}).get("input_tokens", 0)
+            output_token_count += result[0].get("distilabel_metadata", {}).get(
+                "statistics_self_instruct_0", {}).get("output_tokens", 0)
 
             # Ensure the output is a list of instructions
             if not isinstance(conversation_starters, list):
@@ -95,13 +102,13 @@ class Augmentation():
                             else [{"role": "system", "content": self.system_prompt}, {"role": "user", "content": starter}]
                             for starter in conversation_starters[:min(len(conversation_starters), self.conversation_starter_count)]]
 
-            return chat_history
+            return chat_history, input_token_count, output_token_count
 
         except (RuntimeError, ValueError, TypeError) as e:
             raise RuntimeError(
                 f"An error occurred while generating conversation starters: {str(e)}") from e
 
-    def generate_response_llm(self, chat_histories: List[List[Dict[str, str]]], **kwargs) -> List[str]:
+    def generate_response_llm(self, chat_histories: List[List[Dict[str, str]]], **kwargs) -> Tuple[List[str], int, int]:
         """
         Generates responses using a language model in batches.
 
@@ -112,11 +119,13 @@ class Augmentation():
 
         Returns:
             List[str]: A list of generated responses.
+            int: The number of input tokens processed.
+            int: The number of output tokens generated.
         """
 
         return self.generate_response(self.llm_model, chat_histories, **kwargs)
-    
-    def generate_response_thinking(self, chat_histories: List[List[Dict[str, str]]], **kwargs) -> List[str]:
+
+    def generate_response_thinking(self, chat_histories: List[List[Dict[str, str]]], **kwargs) -> Tuple[List[str], int, int]:
         """
         Generates response thinking using a thinking model.
         This method processes chat histories through the thinking model to generate responses.
@@ -126,13 +135,15 @@ class Augmentation():
             **kwargs: Additional keyword arguments to pass to the generate_response method.
         Returns:
             List[str]: A list of generated responses from the thinking model.
+            int: The number of input tokens processed.
+            int: The number of output tokens generated.
         See Also:
             generate_response: The base method used for generating responses.
         """
-        
+
         return self.generate_response(self.thinking_model, chat_histories, **kwargs)
 
-    def generate_response_slm(self, chat_histories: List[List[Dict[str, str]]], **kwargs) -> List[str]:
+    def generate_response_slm(self, chat_histories: List[List[Dict[str, str]]], **kwargs) -> Tuple[List[str], int, int]:
         """
         Generates responses using a language model.
         Args:
@@ -140,6 +151,8 @@ class Augmentation():
             **kwargs: Additional keyword arguments to be passed to the response generation function.
         Returns:
             List[str]: A list of generated responses.
+            int: The number of input tokens processed.
+            int: The number of output tokens generated.
         """
         return self.generate_response(self.slm_model, chat_histories, **kwargs)
 
@@ -148,7 +161,7 @@ class Augmentation():
         lm: AsyncLLM,
         chat_histories: List[List[Dict[str, str]]],
         **kwargs
-    ) -> List[str]:
+    ) -> Tuple[List[str], int, int]:
         """
         Generates responses for a list of chat histories using a language model.
 
@@ -161,7 +174,10 @@ class Augmentation():
 
         Returns:
             List[str]: A list of generated responses corresponding to each chat history.
+            int: The number of input tokens processed.
+            int: The number of output tokens generated.
         """
+        input_token_count, output_token_count = 0, 0
 
         # Initialize the chat generator with the given language model
         generator = ChatGeneration(llm=lm, **kwargs)
@@ -179,6 +195,10 @@ class Augmentation():
 
                 # Extract the 'generation' field from the response
                 response = result[0]["generation"]
+                input_token_count += result[0].get("distilabel_metadata", {}).get(
+                    "statistics_self_instruct_0", {}).get("input_tokens", 0)
+                output_token_count += result[0].get("distilabel_metadata", {}).get(
+                    "statistics_self_instruct_0", {}).get("input_tokens", 0)
 
                 # Accumulate the response
                 all_responses.append(response)
@@ -189,7 +209,7 @@ class Augmentation():
                 # Add a default response for the failed chat history
                 all_responses.append("FAILED RESPONSE")
 
-        return all_responses
+        return all_responses, input_token_count, output_token_count
 
     def comparison_score(self,
                          chat_histories: List[List[Dict[str, str]]],
