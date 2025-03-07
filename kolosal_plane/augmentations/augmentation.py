@@ -1,7 +1,7 @@
 """Augmentation Class"""
 from typing import Optional, List, Dict
 
-from distilabel.llms.base import AsyncLLM
+from distilabel.models.llms.base import AsyncLLM
 from distilabel.steps.tasks import SelfInstruct, ChatGeneration, QualityScorer
 
 from kolosal_plane.utils.llm import get_llm, get_slm
