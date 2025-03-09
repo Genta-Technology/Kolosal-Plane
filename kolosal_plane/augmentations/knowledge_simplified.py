@@ -1,5 +1,5 @@
 """Simplified dataset augmentation for knowledge or data ingestion"""
-from typing import Tuple
+from typing import Tuple, Dict
 
 import polars as pl
 from tqdm import tqdm
@@ -8,7 +8,7 @@ from kolosal_plane.augmentations.knowledge import Knowledge
 
 
 class SimpleKnowledge(Knowledge):
-    def augmentate(self) -> Tuple[pl.DataFrame, int, int, int, int]:
+    def augmentate(self) -> Tuple[pl.DataFrame, Dict[int, int, int, int]]:
         """
         Augments the dataset using a simplified approach:
           - Generate conversation starter questions from documents.
@@ -153,4 +153,12 @@ class SimpleKnowledge(Knowledge):
                         print(
                             f"Error in handling batch followup questions: {e}")
 
-        return augmented_data, llm_input_token_count, llm_output_token_count, tlm_input_token_count, tlm_output_token_count
+        # Generate metadata
+        metadata = {
+            "llm_input_token_count": llm_input_token_count,
+            "llm_output_token_count": llm_output_token_count,
+            "tlm_input_token_count": tlm_input_token_count,
+            "tlm_output_token_count": tlm_output_token_count
+        }
+
+        return augmented_data, metadata

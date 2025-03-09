@@ -50,7 +50,7 @@ class Augmentation():
         if self.slm_model is None:
             self.slm_model = get_slm()
 
-    def generate_conversation_starter(self, **kwargs) -> Tuple[List[Dict[str, str]], int, int]:
+    def generate_conversation_starter(self, **kwargs) -> Tuple[List[Dict[str, str]], Dict[int, int]]:
         """
         Generate conversation starters using the SelfInstruct instance.
         This method initializes a SelfInstruct instance with the provided language model and 
@@ -102,7 +102,11 @@ class Augmentation():
                             else [{"role": "system", "content": self.system_prompt}, {"role": "user", "content": starter}]
                             for starter in conversation_starters[:min(len(conversation_starters), self.conversation_starter_count)]]
 
-            return chat_history, input_token_count, output_token_count
+            # Generate metadata
+            metadata = {"input_token_count": input_token_count,
+                        "output_token_count": output_token_count}
+
+            return chat_history, metadata
 
         except (RuntimeError, ValueError, TypeError) as e:
             raise RuntimeError(
