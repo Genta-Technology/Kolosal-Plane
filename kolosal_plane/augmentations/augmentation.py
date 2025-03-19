@@ -191,27 +191,30 @@ class Augmentation():
 
         all_responses = []
 
-        # Process each chat history individually
-        for chat_history in chat_histories:
-            try:
-                # Generate a response for the current chat history
-                result = next(generator.process([{"messages": chat_history}]))
+        # Prepare batch input for all chat histories
+        batch_input = [{"messages": chat_history}
+                       for chat_history in chat_histories]
 
-                # Extract the 'generation' field from the response
-                response = result[0]["generation"]
-                input_token_count += result[0].get("distilabel_metadata", {}).get(
-                    "statistics_self_instruct_0", {}).get("input_tokens", 0)
-                output_token_count += result[0].get("distilabel_metadata", {}).get(
-                    "statistics_self_instruct_0", {}).get("input_tokens", 0)
+        # Process all chat histories in a batch
+        try:
+            results = list(generator.process(batch_input))
 
-                # Accumulate the response
-                all_responses.append(response)
+            # Extract responses and token counts from results
+            for result in results[0]:
+                if "generation" in result:
+                    response = result["generation"]
+                    input_token_count += result.get("distilabel_metadata", {}).get(
+                        "statistics_chat_generation_0", {}).get("input_tokens", 0)
+                    output_token_count += result.get("distilabel_metadata", {}).get(
+                        "statistics_chat_generation_0", {}).get("output_tokens", 0)
+                    all_responses.append(response)
+                else:
+                    all_responses.append("FAILED RESPONSE")
 
-            except (RuntimeError, ValueError, TypeError) as e:
-                # Print the error message for the failed generation
-                print(f"Error processing chat history: {str(e)}")
-                # Add a default response for the failed chat history
-                all_responses.append("FAILED RESPONSE")
+        except Exception as e:
+            print(f"Error in batch processing: {str(e)}")
+            # If batch processing fails, add default responses
+            all_responses.extend(["FAILED RESPONSE"] * len(chat_histories))
 
         return all_responses, input_token_count, output_token_count
 
