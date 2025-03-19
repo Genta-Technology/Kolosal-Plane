@@ -36,7 +36,23 @@ class RequestKnowledgeAugmentation(BaseModel):
     llm_config: LLMConfiguration
     tlm_config: Optional[LLMConfiguration] = None
 
+
 class ResponseAugmentation(BaseModel):
     """Response of knowledge based dataset augmentation"""
     generated_dataset: Dict
+    metadata: Dict[str, int]
+
+
+class AugmentationJobResponse(BaseModel):
+    """Response for job submission"""
+    job_id: str
+    status: str
+    message: str
+
+
+class JobStatusResponse(BaseModel):
+    """Response for job status"""
+    job_id: str
+    status: str
+    progress: Optional[Dict[str, Any]] = None
     metadata: Dict[str, int]
