@@ -10,7 +10,7 @@ from kolosal_plane.augmentations.knowledge import Knowledge
 
 
 class SimpleKnowledge(Knowledge):
-    def augmentate(self) -> Tuple[pl.DataFrame, Dict[int, int, int, int]]:
+    def augmentate(self) -> Tuple[pl.DataFrame, Dict]:
         """
         Augments the dataset using a simplified approach:
           - Generate conversation starter questions from documents.
@@ -41,11 +41,11 @@ class SimpleKnowledge(Knowledge):
             self.conversation_starter_instruction = built_knowledge_instructions
 
             # Generate conversation starter chat histories
-            chat_histories, temporary_input_token_count, temporary_output_token_count = self.generate_conversation_starter()
+            chat_histories, metadata_conversation_starter = self.generate_conversation_starter()
 
             # Update token counts
-            llm_input_token_count += temporary_input_token_count
-            llm_output_token_count += temporary_output_token_count
+            llm_input_token_count += metadata_conversation_starter["input_token_count"]
+            llm_output_token_count += metadata_conversation_starter["output_token_count"]
 
             documents_data = [document] * len(chat_histories)
 
@@ -165,6 +165,7 @@ class SimpleKnowledge(Knowledge):
 
         return augmented_data, metadata
 
+
 class AsyncSimpleKnowledge(Knowledge):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -194,10 +195,12 @@ class AsyncSimpleKnowledge(Knowledge):
                 document=document)
             self.conversation_starter_instruction = built_knowledge_instructions
 
-            chat_histories, temp_llm_input, temp_llm_output = self.generate_conversation_starter()
+            # Generate conversation starter chat histories
+            chat_histories, metadata_conversation_starter = self.generate_conversation_starter()
 
-            self._metadata["llm_input_token_count"] += temp_llm_input
-            self._metadata["llm_output_token_count"] += temp_llm_output
+            # Update token counts
+            self._metadata["llm_input_token_count"] += metadata_conversation_starter["input_token_count"]
+            self._metadata["llm_output_token_count"] += metadata_conversation_starter["output_token_count"]
 
             documents_data = [document] * len(chat_histories)
             new_df = pl.DataFrame({
@@ -253,6 +256,7 @@ class AsyncSimpleKnowledge(Knowledge):
                         "response": responses
                     })
                     self._augmented_data = self._augmented_data.vstack(new_df)
+
                 except Exception as e:
                     print(f"Error in batch responses: {e}")
                     continue
@@ -289,6 +293,7 @@ class AsyncSimpleKnowledge(Knowledge):
                         })
                         self._augmented_data = self._augmented_data.vstack(
                             new_df)
+
                     except Exception as e:
                         print(f"Error in generating follow-up questions: {e}")
 
@@ -316,7 +321,7 @@ class AsyncSimpleKnowledge(Knowledge):
         if self._task and not self._task.done():
             self._task.cancel()
 
-    def get_status(self) -> Tuple(str, Dict[int, int]):
+    def get_status(self) -> Tuple[str, Dict]:
         """
         Returns the current status of the augmentation process.
         """
