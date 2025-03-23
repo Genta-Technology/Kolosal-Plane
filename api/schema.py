@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 class LLMConfiguration(BaseModel):
     """Configuration for Language Model"""
-    model_provider: Literal["azure", "openai",
+    model_provider: Literal["azure_openai", "openai",
                             "genta", "fireworks", "anthropic"]
     model_name: str
     model_parameters: Optional[Dict] = {}

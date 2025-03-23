@@ -84,7 +84,7 @@ def create_llm_from_config(config: Dict[str, Any]) -> AsyncLLM:
     api_version = config.get("api_version")
     model_parameters = config.get("model_parameters", {})
 
-    if model_provider == "azure":
+    if model_provider == "azure_openai":
         if not api_version:
             raise ValueError("API version is required for Azure OpenAI models")
 
