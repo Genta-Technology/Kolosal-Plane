@@ -77,12 +77,12 @@ def create_llm_from_config(config: Dict[str, Any]) -> AsyncLLM:
     Raises:
         ValueError: If the model provider specified in the configuration is unsupported.
     """
-    model_provider = config.get("model_provider")
-    model_name = config.get("model_name")
-    api_key = config.get("api_key")
-    base_url = config.get("base_url")
-    api_version = config.get("api_version")
-    model_parameters = config.get("model_parameters", {})
+    model_provider = config.model_provider
+    model_name = config.model_name
+    api_key = config.api_key
+    base_url = config.base_url
+    api_version = config.api_version
+    model_parameters = config.model_parameters or {}
 
     if model_provider == "azure_openai":
         if not api_version:
@@ -92,7 +92,7 @@ def create_llm_from_config(config: Dict[str, Any]) -> AsyncLLM:
             base_url=base_url,
             api_key=api_key,
             api_version=api_version,
-            deployment_name=model_name,
+            model=model_name,  # Use model parameter instead of deployment_name
             generation_kwargs=model_parameters
         )
 
@@ -116,6 +116,7 @@ def create_llm_from_config(config: Dict[str, Any]) -> AsyncLLM:
         # Fireworks uses OpenAI-compatible API
         return OpenAILLM(
             api_key=api_key,
+            base_url="https://api.fireworks.ai/inference/v1",
             model=model_name,
             generation_kwargs=model_parameters
         )
