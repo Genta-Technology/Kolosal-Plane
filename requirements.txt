@@ -6,4 +6,3 @@ python-dotenv
 uvicorn
 streamlit
 torch
-unsloth
