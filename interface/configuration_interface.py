@@ -3,7 +3,7 @@
 import streamlit as st
 
 
-def augmentation_configuration_interface():
+def knowledge_configuration_interface():
     """
     Renders the configuration interface for knowledge augmentation settings.
     This function displays and manages user inputs for configuring the knowledge augmentation process:
