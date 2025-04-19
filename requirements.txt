@@ -1,8 +1,7 @@
-distilabel
+git+https://github.com/FarrelRamdhani/distilabel-azure-openai-fix.git
 polars
 openai
 fastapi
 python-dotenv
 uvicorn
-torch
-unsloth
+streamlit

@@ -1,11 +1,8 @@
 """Selection of SLM and LLM for the API"""
 import os
 import json
+from typing import Dict, Any
 from distilabel.llms import AzureOpenAILLM, AsyncLLM, OpenAILLM, AnthropicLLM
-
-# Load configuration from config file
-with open('config.json', encoding='utf-8') as config_file:
-    config = json.load(config_file)
 
 
 def get_lm_instance(model_config):
@@ -61,12 +58,90 @@ def get_lm_instance(model_config):
         raise ValueError(f"Unsupported model provider: {model_provider}")
 
 
+def create_llm_from_config(config: Dict[str, Any]) -> AsyncLLM:
+    """
+    Creates an LLM instance from configuration dictionary.
+
+    Args:
+        config (dict): A dictionary containing the configuration for the model.
+            - model_provider (str): The provider of the model (e.g., "azure", "openai", "genta", "fireworks", "anthropic").
+            - model_name (str): The name of the model to be used.
+            - api_key (str): The API key for the model provider.
+            - base_url (str, optional): The base URL for the API endpoint.
+            - api_version (str, optional): The API version (required for Azure).
+            - model_parameters (dict, optional): Additional parameters for model generation.
+
+    Returns:
+        AsyncLLM: An instance of the specified language model.
+
+    Raises:
+        ValueError: If the model provider specified in the configuration is unsupported.
+    """
+    model_provider = config.model_provider
+    model_name = config.model_name
+    api_key = config.api_key
+    base_url = config.base_url
+    api_version = config.api_version
+    model_parameters = config.model_parameters or {}
+
+    if model_provider == "azure_openai":
+        if not api_version:
+            raise ValueError("API version is required for Azure OpenAI models")
+
+        return AzureOpenAILLM(
+            base_url=base_url,
+            api_key=api_key,
+            api_version=api_version,
+            model=model_name,  # Use model parameter instead of deployment_name
+            generation_kwargs=model_parameters
+        )
+
+    elif model_provider == "openai":
+        return OpenAILLM(
+            api_key=api_key,
+            model=model_name,
+            generation_kwargs=model_parameters
+        )
+
+    elif model_provider == "genta":
+        # Genta uses OpenAI-compatible API
+        return OpenAILLM(
+            api_key=api_key,
+            base_url="https://api.genta.tech",
+            model=model_name,
+            generation_kwargs=model_parameters
+        )
+
+    elif model_provider == "fireworks":
+        # Fireworks uses OpenAI-compatible API
+        return OpenAILLM(
+            api_key=api_key,
+            base_url="https://api.fireworks.ai/inference/v1",
+            model=model_name,
+            generation_kwargs=model_parameters
+        )
+
+    elif model_provider == "anthropic":
+        return AnthropicLLM(
+            api_key=api_key,
+            model=model_name,
+            generation_kwargs=model_parameters
+        )
+
+    else:
+        raise ValueError(f"Unsupported model provider: {model_provider}")
+
+
 def get_llm() -> AsyncLLM:
     """
     Retrieve the instance of the asynchronous language model (LLM).
     Returns:
         AsyncLLM: The instance of the asynchronous language model.
     """
+    # Load configuration from config file
+    with open('config.json', encoding='utf-8') as config_file:
+        config = json.load(config_file)
+
     return get_lm_instance(config["llm"])
 
 
@@ -76,4 +151,7 @@ def get_slm() -> AsyncLLM:
     Returns:
         AsyncLLM: The SLM instance.
     """
+    # Load configuration from config file
+    with open('config.json', encoding='utf-8') as config_file:
+        config = json.load(config_file)
     return get_lm_instance(config["slm"])
