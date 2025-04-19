@@ -26,6 +26,16 @@ def knowledge_prompt_interface():
         "system_prompt", "")
 
     st.subheader("Prompts")
+    
+    # Example prompts
+    if st.button("Load example prompts", key="load_example_prompts"):
+        st.session_state.knowledge_augmentation_config[
+                "conversation_starter_instruction"] = "Act like an Ivy Leauge students that is passionate in astronomy, generate questions that would be asked to a professor based on the given topic."
+        st.session_state.knowledge_augmentation_config[
+                "conversation_personalization_instruction"] = "Answer the questions in a friendly manner, as if you are talking to a friend."
+        st.session_state.knowledge_augmentation_config[
+                "system_prompt"] = "You are an Ivy League professor, answer the questions in a friendly manner, as if you are teaching passionatly about astronomy"
+    
     with st.form("prompts_form"):
         conversation_starter_instruction = st.text_area(
             "Conversation Starter Topic",
