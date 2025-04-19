@@ -20,11 +20,11 @@ def knowledge_configuration_interface():
     """
     
     conversation_starter_count = st.session_state.knowledge_augmentation_config.get(
-        "conversation_starter_count", 10)
+        "conversation_starter_count", 4)
     max_conversation_length = st.session_state.knowledge_augmentation_config.get(
-        "max_conversation_length", 5)
+        "max_conversation_length", 4)
     batch_size = st.session_state.knowledge_augmentation_config.get(
-        "batch_size", 32)
+        "batch_size", 16)
 
     st.subheader("Augmentation Configuration")
     with st.form("augmentation_config_form"):

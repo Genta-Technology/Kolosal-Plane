@@ -28,6 +28,9 @@ def documents_interface():
 
         st.session_state.documents_df = pd.DataFrame(
             {"Documents": current_documents})
+    
+    if st.button("Load example documents", key="load_example_documents"):
+        st.session_state.documents_df = pd.read_csv("example\documents.csv")
 
     uploaded_file = st.file_uploader(
         "Upload CSV (optional)",
