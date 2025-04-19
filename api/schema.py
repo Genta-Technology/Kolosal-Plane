@@ -55,4 +55,4 @@ class JobStatusResponse(BaseModel):
     job_id: str
     status: str
     progress: Optional[Dict[str, Any]] = None
-    metadata: Dict[str, int]
+    metadata: Dict[str, Any]

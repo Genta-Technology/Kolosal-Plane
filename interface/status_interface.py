@@ -17,6 +17,9 @@ def knowledge_augmentation_status_interface():
             st.success(f"Job ID set to: {manual_job_id}")
         else:
             st.error("Please enter a valid Job ID")
+    
+    if st.button("Clear Job ID"):
+        st.session_state.job_id = None
 
     # Display current job ID
     job_id = st.session_state.get("job_id")
