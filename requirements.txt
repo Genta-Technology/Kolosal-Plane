@@ -5,4 +5,3 @@ fastapi
 python-dotenv
 uvicorn
 streamlit
-torch
