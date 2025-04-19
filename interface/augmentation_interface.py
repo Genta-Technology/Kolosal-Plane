@@ -6,6 +6,25 @@ from api.api_helper import start_knowledge_augmentation
 
 
 def knowledge_augmentation_interface():
+    """
+    Renders the knowledge augmentation interface in the Streamlit application.
+    This function provides UI components to:
+    1. Display the current knowledge augmentation configuration as JSON
+    2. Validate the configuration payload
+    3. Start the knowledge augmentation process
+    The interface includes:
+    - A display of the current configuration stored in session state
+    - A "Validate Payload" button to check if the configuration is valid
+    - A "Start Augmentation" button to initiate the knowledge augmentation process
+    When augmentation is started, it sends the configuration to the backend API
+    and stores the resulting job ID in the session state for tracking.
+    Returns:
+        None
+    Side effects:
+        - Updates st.session_state.job_id when augmentation is started
+        - Displays success/error messages through the Streamlit interface
+    """
+
     # Display current configuration
     st.subheader("Current Configuration")
     st.json(st.session_state.knowledge_augmentation_config)
@@ -35,7 +54,7 @@ def knowledge_augmentation_interface():
                 max_conversation_length=payload["max_conversation_length"],
                 batch_size=payload["batch_size"]
             )
-            
+
             st.session_state.job_id = response["job_id"]
 
             # Display the job id

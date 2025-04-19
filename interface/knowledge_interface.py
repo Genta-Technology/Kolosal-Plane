@@ -7,6 +7,7 @@ from interface.documents_interface import documents_interface
 from interface.prompts_interface import knowledge_prompt_interface
 from interface.configuration_interface import knowledge_configuration_interface
 from interface.augmentation_interface import knowledge_augmentation_interface
+from interface.status_interface import knowledge_augmentation_status_interface
 
 # API endpoint configuration
 API_BASE_URL = "http://localhost:8000"
@@ -38,6 +39,9 @@ def augmentation_interface():
     
     elif st.session_state.knowledge_slide == 5:
         knowledge_augmentation_interface()
+    
+    elif st.session_state.knowledge_slide == 6:
+        knowledge_augmentation_status_interface()
 
     # Display navigation controls
     col1, col2, col3 = st.columns([1, 3, 1])
