@@ -2,7 +2,7 @@
 import streamlit as st
 
 
-def augmentation_prompt_interface():
+def knowledge_prompt_interface():
     """
     Renders a Streamlit interface for configuring knowledge augmentation prompts.
     This function displays a form with text areas for three different prompt components:
