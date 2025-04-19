@@ -5,6 +5,7 @@ import pandas as pd
 from interface.model_config import model_config_interface
 from interface.documents_interface import documents_interface
 from interface.prompts_interface import augmentation_prompt_interface
+from interface.configuration_interface import augmentation_configuration_interface
 # API endpoint configuration
 API_BASE_URL = "http://localhost:8000"
 
@@ -29,6 +30,9 @@ def augmentation_interface():
 
     elif st.session_state.knowledge_slide == 3:
         augmentation_prompt_interface()
+        
+    elif st.session_state.knowledge_slide == 4:
+        augmentation_configuration_interface()
 
     # Display navigation controls
     col1, col2, col3 = st.columns([1, 3, 1])
