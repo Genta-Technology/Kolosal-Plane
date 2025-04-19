@@ -52,7 +52,7 @@ In the repository you’ll find **`example.ipynb`**, which demonstrates programm
 
 ## Community and Support
 
-Kolosal Plane is an early-stage project – we’d love your help in making it better! If you have questions or want to connect with other developers using the tool, **join our Discord**: [Kolosal Plane Community](https://discord.gg/SqhynwDTbp). It’s a great place to share ideas, get support, and discuss data augmentation and fine-tuning techniques.
+Kolosal Plane is an early-stage project – we’d love your help in making it better! If you have questions or want to connect with other developers using the tool, **join our Discord**: [Kolosal AI](https://discord.gg/SqhynwDTbp). It’s a great place to share ideas, get support, and discuss data augmentation and fine-tuning techniques.
 
 Found a bug or have a feature request? Please open an issue on the GitHub repo. We welcome contributions – whether it’s reporting an issue, improving documentation, or adding new features.
 
