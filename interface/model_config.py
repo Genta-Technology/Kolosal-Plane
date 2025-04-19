@@ -177,8 +177,9 @@ def model_config_interface():
         enable_tlm = st.toggle(
             "Enable Thinking Language Model (TLM)", key="enable_tlm")
 
-        tlm_config = {}
+        tlm_config = None
         if enable_tlm:
+            tlm_config = {}
             with st.form("tlm_provider_form"):
                 tlm_option = st.radio(
                     "Select TLM Provider:",

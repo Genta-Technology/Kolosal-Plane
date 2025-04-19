@@ -4,7 +4,7 @@ import requests
 from typing import List, Dict, Any, Optional
 
 # === Configuration ===
-BASE_URL = "http://localhost:8000"     # Change to your API's host:port or domain
+BASE_URL = "http://127.0.0.1:8000"     # Change to your API's host:port or domain
 
 HEADERS = {"Content-Type": "application/json"}
 

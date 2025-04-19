@@ -32,6 +32,9 @@ if "knowledge_augmentation_config" not in st.session_state:
 if "embeddings_augmentation_config" not in st.session_state:
     st.session_state.embeddings_augmentation_config = {}
 
+if "job_id" not in st.session_state:
+    st.session_state.job_id = None
+
 tabs = st.tabs(["Knowledge Augmentation", "Embeddings Augmentation"])
 
 with tabs[0]:
