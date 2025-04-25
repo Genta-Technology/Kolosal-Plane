@@ -3,11 +3,16 @@ import uuid
 from typing import Dict, Any
 import polars as pl
 from fastapi import FastAPI, HTTPException, BackgroundTasks
+import asyncio
+import nest_asyncio  # Add this import to handle nested event loops
 
 from kolosal_plane.augmentations.knowledge_simplified import AsyncSimpleKnowledge
 from kolosal_plane.augmentations.embeddings import AsyncEmbeddingAugmentation
 from kolosal_plane.utils.llm import create_llm_from_config
 from api.schema import RequestEmbeddingAugmentation, RequestKnowledgeAugmentation, ResponseAugmentation, AugmentationJobResponse, JobStatusResponse
+
+# Apply nest_asyncio to allow nested event loops
+nest_asyncio.apply()
 
 # Job storage
 kolosal_jobs: Dict[str, Any] = {}
@@ -30,6 +35,20 @@ def convert_df_to_dict(df: pl.DataFrame) -> Dict:
         return {
             "rows": df.to_dicts()
         }
+
+
+# Background task runner
+async def run_augmentation_task(augmenter, job_id):
+    """Run the augmentation task"""
+    try:
+        # Make sure the task is running
+        task = augmenter.start_augmentation()
+        await task  # Wait for the task to complete
+    except Exception as e:
+        print(f"Error in augmentation task for job {job_id}: {e}")
+        # Update status to failed in case of error
+        if hasattr(augmenter, '_status'):
+            augmenter._status = f"Failed: {str(e)}"
 
 
 @app.post("/embedding-augmentation", response_model=AugmentationJobResponse)
@@ -55,7 +74,8 @@ async def start_embedding_augmentation(request: RequestEmbeddingAugmentation):
     # Store the job
     kolosal_jobs[job_id] = {
         "type": "embedding",
-        "augmentation": augmentation,
+        "augmenter": augmentation,  # Changed from "augmentation" to "augmenter" for consistency
+        "task": _task  # Store the task object for potential tracking
     }
 
     return AugmentationJobResponse(
@@ -67,7 +87,7 @@ async def start_embedding_augmentation(request: RequestEmbeddingAugmentation):
 
 @app.post("/knowledge-augmentation", response_model=AugmentationJobResponse)
 async def start_knowledge_augmentation(request: RequestKnowledgeAugmentation,
-                                       background_tasks: BackgroundTasks):
+                                     background_tasks: BackgroundTasks):
     """Start a knowledge augmentation job"""
     job_id = str(uuid.uuid4())
 
@@ -90,14 +110,14 @@ async def start_knowledge_augmentation(request: RequestKnowledgeAugmentation,
         thinking_model=tlm
     )
 
-    # Start the augmentation task
-    _task = augmentation.start_augmentation()
-
-    # Store the job
+    # Store the job first
     kolosal_jobs[job_id] = {
         "type": "knowledge",
         "augmenter": augmentation
     }
+
+    # Start the augmentation task in the background
+    background_tasks.add_task(run_augmentation_task, augmentation, job_id)
 
     return AugmentationJobResponse(
         job_id=job_id,
@@ -176,10 +196,7 @@ async def cancel_job(job_id: str):
     augmenter.cancel_augmentation()
 
     # Get final results
-    _, _ = augmenter.get_result()
-
-    # Clean up (optional - you might want to keep it for a while)
-    # active_jobs.pop(job_id)
+    status, _ = augmenter.get_status()
 
     return AugmentationJobResponse(
         job_id=job_id,
@@ -192,3 +209,10 @@ async def cancel_job(job_id: str):
 async def health_check():
     """Health check endpoint"""
     return {"status": "ok"}
+
+
+# Optional: Add startup event to ensure proper asyncio event loop is running
+@app.on_event("startup")
+async def startup_event():
+    """Startup event to initialize asyncio properly"""
+    print("API server started")

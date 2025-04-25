@@ -185,120 +185,158 @@ class AsyncSimpleKnowledge(Knowledge):
         }
         self._status = "Not started"
         self._task: asyncio.Task = None
+        self._lock = asyncio.Lock()  # Add lock for thread safety
+
+    async def _run_sync_function(self, func, *args, **kwargs):
+        """Helper method to run synchronous functions in the running event loop"""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, lambda: func(*args, **kwargs))
 
     async def augmentate_async(self) -> Tuple[pl.DataFrame, Dict[str, int]]:
-        self._status = "Running"
-        # Step 1: Generate conversation starter questions for each document
-        for document in self.documents:
-            await asyncio.sleep(0)  # yield control
-            built_knowledge_instructions = self.build_knowledge_instruction(
-                document=document)
-            self.conversation_starter_instruction = built_knowledge_instructions
+        try:
+            self._status = "Running"
+            # Step 1: Generate conversation starter questions for each document
+            for document in self.documents:
+                await asyncio.sleep(0)  # yield control
+                built_knowledge_instructions = self.build_knowledge_instruction(
+                    document=document)
+                self.conversation_starter_instruction = built_knowledge_instructions
 
-            # Generate conversation starter chat histories
-            chat_histories, metadata_conversation_starter = self.generate_conversation_starter()
+                # Generate conversation starter chat histories - run synchronously in thread pool
+                starter_result = await self._run_sync_function(self.generate_conversation_starter)
+                chat_histories, metadata_conversation_starter = starter_result
 
-            # Update token counts
-            self._metadata["llm_input_token_count"] += metadata_conversation_starter["input_token_count"]
-            self._metadata["llm_output_token_count"] += metadata_conversation_starter["output_token_count"]
+                # Update token counts
+                async with self._lock:  # Use lock to safely update shared data
+                    self._metadata["llm_input_token_count"] += metadata_conversation_starter["input_token_count"]
+                    self._metadata["llm_output_token_count"] += metadata_conversation_starter["output_token_count"]
 
-            documents_data = [document] * len(chat_histories)
-            new_df = pl.DataFrame({
-                "chat_history": chat_histories,
-                "document": documents_data,
-                "response": [""] * len(chat_histories)
-            })
-            self._augmented_data = self._augmented_data.vstack(new_df)
+                documents_data = [document] * len(chat_histories)
+                new_df = pl.DataFrame({
+                    "chat_history": chat_histories,
+                    "document": documents_data,
+                    "response": [""] * len(chat_histories)
+                })
 
-        # Step 2: Loop for max_conversations rounds
-        is_last = False
-        for count in tqdm_asyncio(range(self.max_conversations), desc="Augmenting conversations"):
-            await asyncio.sleep(0)
-            if count == self.max_conversations - 1:
-                is_last = True
-
-            temporary_augmented_data = self._augmented_data.filter(
-                pl.col("response") == "")
-            self._augmented_data = self._augmented_data.filter(
-                pl.col("response") != "")
-
-            # Process data in batches
-            batch_temporary_augmented_data = [
-                temporary_augmented_data[i: i + self.batch_size]
-                for i in range(0, len(temporary_augmented_data), self.batch_size)
-            ]
-            for batch in batch_temporary_augmented_data:
-                try:
-                    original_chat_histories = batch["chat_history"].to_list()
-                    built_chat_histories = self.build_chat_histories(
-                        documents=batch["document"].to_list(),
-                        chat_histories=original_chat_histories
-                    )
-
-                    # Generate response using the appropriate model asynchronously if possible
-                    if self.thinking_model:
-                        responses, temp_tlm_input, temp_tlm_output = self.generate_response_thinking(
-                            chat_histories=built_chat_histories
-                        )
-                        self._metadata["tlm_input_token_count"] += temp_tlm_input
-                        self._metadata["tlm_output_token_count"] += temp_tlm_output
-                    else:
-                        responses, temp_llm_input, temp_llm_output = self.generate_response_llm(
-                            chat_histories=built_chat_histories
-                        )
-                        self._metadata["llm_input_token_count"] += temp_llm_input
-                        self._metadata["llm_output_token_count"] += temp_llm_output
-
-                    # Save the response with original chat histories.
-                    new_df = pl.DataFrame({
-                        "chat_history": original_chat_histories,
-                        "document": batch["document"],
-                        "response": responses
-                    })
+                async with self._lock:
                     self._augmented_data = self._augmented_data.vstack(new_df)
 
-                except Exception as e:
-                    print(f"Error in batch responses: {e}")
-                    continue
+            # Step 2: Loop for max_conversations rounds
+            is_last = False
+            for count in tqdm_asyncio(range(self.max_conversations), desc="Augmenting conversations"):
+                await asyncio.sleep(0)
+                if count == self.max_conversations - 1:
+                    is_last = True
 
-                # Step 3: Generate follow-up questions if not the last round.
-                if not is_last:
+                async with self._lock:
+                    temporary_augmented_data = self._augmented_data.filter(
+                        pl.col("response") == "")
+                    self._augmented_data = self._augmented_data.filter(
+                        pl.col("response") != "")
+
+                # Process data in batches
+                batch_temporary_augmented_data = [
+                    temporary_augmented_data[i: i + self.batch_size]
+                    for i in range(0, len(temporary_augmented_data), self.batch_size)
+                ]
+
+                for batch in batch_temporary_augmented_data:
                     try:
-                        questions, documents, temp_llm_input, temp_llm_output = self.generate_next_conversation(
-                            llm=self.llm_model,
-                            chat_histories=batch["chat_history"].to_list(),
-                            responses=responses,
-                            previous_documents=batch["document"].to_list()
+                        original_chat_histories = batch["chat_history"].to_list(
                         )
-                        self._metadata["llm_input_token_count"] += temp_llm_input
-                        self._metadata["llm_output_token_count"] += temp_llm_output
+                        built_chat_histories = self.build_chat_histories(
+                            documents=batch["document"].to_list(),
+                            chat_histories=original_chat_histories
+                        )
 
-                        generated_chat_histories = []
-                        generated_chat_documents = []
-                        for chat_history, response, question, document in zip(
-                            batch["chat_history"].to_list(
-                            ), responses, questions, documents
-                        ):
-                            new_chat_history = chat_history + [
-                                {"role": "assistant", "content": response},
-                                {"role": "user", "content": question}
-                            ]
-                            generated_chat_histories.append(new_chat_history)
-                            generated_chat_documents.append(document)
+                        # Generate response using the appropriate model - run synchronously in thread pool
+                        if self.thinking_model:
+                            response_result = await self._run_sync_function(
+                                self.generate_response_thinking,
+                                chat_histories=built_chat_histories
+                            )
+                            responses, temp_tlm_input, temp_tlm_output = response_result
+                            async with self._lock:
+                                self._metadata["tlm_input_token_count"] += temp_tlm_input
+                                self._metadata["tlm_output_token_count"] += temp_tlm_output
+                        else:
+                            response_result = await self._run_sync_function(
+                                self.generate_response_llm,
+                                chat_histories=built_chat_histories
+                            )
+                            responses, temp_llm_input, temp_llm_output = response_result
+                            async with self._lock:
+                                self._metadata["llm_input_token_count"] += temp_llm_input
+                                self._metadata["llm_output_token_count"] += temp_llm_output
 
+                        # Save the response with original chat histories
                         new_df = pl.DataFrame({
-                            "chat_history": generated_chat_histories,
-                            "document": generated_chat_documents,
-                            "response": [""] * len(generated_chat_histories)
+                            "chat_history": original_chat_histories,
+                            "document": batch["document"],
+                            "response": responses
                         })
-                        self._augmented_data = self._augmented_data.vstack(
-                            new_df)
+
+                        async with self._lock:
+                            self._augmented_data = self._augmented_data.vstack(
+                                new_df)
 
                     except Exception as e:
-                        print(f"Error in generating follow-up questions: {e}")
+                        print(f"Error in batch responses: {e}")
+                        continue
 
-        self._status = "Finished"
-        return self._augmented_data, self._metadata
+                    # Step 3: Generate follow-up questions if not the last round
+                    if not is_last:
+                        try:
+                            next_convo_result = await self._run_sync_function(
+                                self.generate_next_conversation,
+                                llm=self.llm_model,
+                                chat_histories=batch["chat_history"].to_list(),
+                                responses=responses,
+                                previous_documents=batch["document"].to_list()
+                            )
+                            questions, documents, temp_llm_input, temp_llm_output = next_convo_result
+
+                            async with self._lock:
+                                self._metadata["llm_input_token_count"] += temp_llm_input
+                                self._metadata["llm_output_token_count"] += temp_llm_output
+
+                            generated_chat_histories = []
+                            generated_chat_documents = []
+                            for chat_history, response, question, document in zip(
+                                batch["chat_history"].to_list(
+                                ), responses, questions, documents
+                            ):
+                                new_chat_history = chat_history + [
+                                    {"role": "assistant", "content": response},
+                                    {"role": "user", "content": question}
+                                ]
+                                generated_chat_histories.append(
+                                    new_chat_history)
+                                generated_chat_documents.append(document)
+
+                            new_df = pl.DataFrame({
+                                "chat_history": generated_chat_histories,
+                                "document": generated_chat_documents,
+                                "response": [""] * len(generated_chat_histories)
+                            })
+
+                            async with self._lock:
+                                self._augmented_data = self._augmented_data.vstack(
+                                    new_df)
+
+                        except Exception as e:
+                            print(
+                                f"Error in generating follow-up questions: {e}")
+
+            self._status = "Finished"
+            return self._augmented_data, self._metadata
+
+        except asyncio.CancelledError:
+            self._status = "Cancelled"
+            raise
+        except Exception as e:
+            self._status = f"Failed: {str(e)}"
+            raise
 
     def start_augmentation(self):
         """
@@ -326,3 +364,7 @@ class AsyncSimpleKnowledge(Knowledge):
         Returns the current status of the augmentation process.
         """
         return self._status, self._metadata
+
+    def is_running(self) -> bool:
+        """Check if the augmentation task is currently running"""
+        return self._task is not None and not self._task.done() and self._status == "Running"
