@@ -76,7 +76,7 @@ def embedding_configuration_interface():
     """
 
     question_per_document = st.session_state.embeddings_augmentation_config.get(
-        "question_per_document", 4)
+        "question_per_document", 100)
     batch_size = st.session_state.embeddings_augmentation_config.get(
         "batch_size", 16)
 
