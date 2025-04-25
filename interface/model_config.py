@@ -48,7 +48,7 @@ def create_model_config(provider: str,
         "api_key": api_key,
         "model_parameters": {
             "temperature": temperature,
-            "max_tokens": max_tokens
+            "max_new_tokens": max_tokens
         }
     }
 
