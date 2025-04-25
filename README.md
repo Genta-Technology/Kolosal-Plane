@@ -13,6 +13,29 @@ Kolosal Plane is an open-source data augmentation pipeline that enables develope
 3. Example Notebook & UI: Includes an example.ipynb for quickstart and a Streamlit web UI (On Progress) to interactively configure augmentation settings and preview results.
 4. Community-Driven: Join our Discord community for support, ideas, and collaboration. We welcome feedback and bug reports (please file an issue on GitHub or Discord)!
 
+## TL:DR How to Use Kolosal Plane
+
+Good news! You can get started with Kolosal Plane in just a few steps:
+
+1. **Install Kolosal Plane**: Clone the repository
+
+    ```bash
+    git clone https://github.com/Genta-Technology/Kolosal-Plane.git
+    ```
+
+2. **Install Dependencies**: Navigate to the project directory and install the required packages using pip:
+
+    ```bash
+    cd Kolosal-Plane
+    pip install -r requirements.txt
+    ```
+
+2. Run it by using the command line:
+
+    ```bash
+    python main.py
+    ```
+
 ## What is Data Augmentation for LLMs?
 
 Data augmentation in the context of language models refers to expanding or enhancing the training data by algorithmic means – here, by using one model to generate new training examples for another. Instead of relying solely on human-written dialogues or scarce domain-specific data, Kolosal Plane uses a powerful LLM to synthesize new question-answer pairs and conversations. These synthetic examples can then be added to your training corpus to improve a smaller model’s performance.
@@ -36,7 +59,9 @@ For example, Predibase showed that a fine-tuned 8B LLaMA (via LoRA) **outperform
 The takeaway: **Fine-tuning works**. With efficient methods like LoRA (which adds only a few million trainable parameters) and QLoRA (which fine-tunes in 4-bit precision), even *billions-scale* models become practical to adapt. Kolosal Plane embraces this, using LLM-generated data to give your small model a fighting chance against the giants in your domain [3]. In many cases, a domain-specialized 2–13B model can rival a 100B+ general model, at a fraction of the inference cost.
 
 ## How the Synthetic Conversation Pipeline Works
+
 This is an overview on how the synthetic conversation pipeline works. Kolosal Plane’s data generation loop simulates a back-and-forth dialogue, optionally grounded in provided documents or context. The process can be summarized as:
+
 1. **Conversation Start (Question Generation):** For each given topic or document, the pipeline first generates an initial **user question**. This is often guided by a *conversation starter instruction* you provide (e.g. “Ask a question about the document’s content” or a general topic prompt). Under the hood, Kolosal Plane uses a prompt template (inspired by Self-Instruct) to have the LLM come up with a relevant question or instruction based on the document/context.
 
 2. **LLM Answer Generation:** The large model (LLM) is then invoked to answer the question. Before calling the LLM, Kolosal Plane can insert the relevant context (the document text, or any system/persona prompt you defined) into the conversation history so that the LLM’s answer is knowledgeable and coherent
@@ -44,7 +69,6 @@ This is an overview on how the synthetic conversation pipeline works. Kolosal Pl
 3. **Follow-up Question Generation:** After an answer, the pipeline generates a **follow-up user question** to continue the conversation.
 
 4. **Conversation Continuation (Loop):** The new question is added to the chat history, and we loop back to step 2. The LLM now answers the follow-up question, producing the next answer. This question/answer pair is appended to the growing conversation. The cycle of **(User question → LLM answer → next User question → ...)** repeats until a specified length (`max_conversations`) is reached
-
 
 ## Example: Using Kolosal Plane for Synthetic Data Generation
 
