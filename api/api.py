@@ -74,8 +74,7 @@ async def start_embedding_augmentation(request: RequestEmbeddingAugmentation):
     # Store the job
     kolosal_jobs[job_id] = {
         "type": "embedding",
-        "augmenter": augmentation,  # Changed from "augmentation" to "augmenter" for consistency
-        "task": _task  # Store the task object for potential tracking
+        "augmenter": augmentation
     }
 
     return AugmentationJobResponse(
@@ -87,7 +86,7 @@ async def start_embedding_augmentation(request: RequestEmbeddingAugmentation):
 
 @app.post("/knowledge-augmentation", response_model=AugmentationJobResponse)
 async def start_knowledge_augmentation(request: RequestKnowledgeAugmentation,
-                                     background_tasks: BackgroundTasks):
+                                       background_tasks: BackgroundTasks):
     """Start a knowledge augmentation job"""
     job_id = str(uuid.uuid4())
 
