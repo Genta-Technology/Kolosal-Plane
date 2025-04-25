@@ -1,7 +1,6 @@
 """API For Kolosal Plane"""
 import uuid
 from typing import Dict, Any
-import asyncio
 import polars as pl
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 
@@ -11,7 +10,7 @@ from kolosal_plane.utils.llm import create_llm_from_config
 from api.schema import RequestEmbeddingAugmentation, RequestKnowledgeAugmentation, ResponseAugmentation, AugmentationJobResponse, JobStatusResponse
 
 # Job storage
-active_jobs: Dict[str, Any] = {}
+kolosal_jobs: Dict[str, Any] = {}
 
 app = FastAPI(title="Kolosal Plane API",
               description="API for dataset augmentation in Kolosal Plane",
@@ -34,8 +33,7 @@ def convert_df_to_dict(df: pl.DataFrame) -> Dict:
 
 
 @app.post("/embedding-augmentation", response_model=AugmentationJobResponse)
-async def start_embedding_augmentation(request: RequestEmbeddingAugmentation,
-                                       background_tasks: BackgroundTasks):
+async def start_embedding_augmentation(request: RequestEmbeddingAugmentation):
     """Start an embedding augmentation job"""
     job_id = str(uuid.uuid4())
 
@@ -52,13 +50,12 @@ async def start_embedding_augmentation(request: RequestEmbeddingAugmentation,
     )
 
     # Start the augmentation task
-    task = augmentation.start_augmentation()
+    _task = augmentation.start_augmentation()
 
     # Store the job
-    active_jobs[job_id] = {
+    kolosal_jobs[job_id] = {
         "type": "embedding",
-        "augmenter": augmentation,
-        "task": task
+        "augmentation": augmentation,
     }
 
     return AugmentationJobResponse(
@@ -94,13 +91,12 @@ async def start_knowledge_augmentation(request: RequestKnowledgeAugmentation,
     )
 
     # Start the augmentation task
-    task = augmentation.start_augmentation()
+    _task = augmentation.start_augmentation()
 
     # Store the job
-    active_jobs[job_id] = {
+    kolosal_jobs[job_id] = {
         "type": "knowledge",
-        "augmenter": augmentation,
-        "task": task
+        "augmenter": augmentation
     }
 
     return AugmentationJobResponse(
@@ -113,10 +109,10 @@ async def start_knowledge_augmentation(request: RequestKnowledgeAugmentation,
 @app.get("/jobs/{job_id}/status", response_model=JobStatusResponse)
 async def get_job_status(job_id: str):
     """Get the status of a job"""
-    if job_id not in active_jobs:
+    if job_id not in kolosal_jobs:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    job = active_jobs[job_id]
+    job = kolosal_jobs[job_id]
     augmenter = job["augmenter"]
 
     status, metadata = augmenter.get_status()
@@ -153,10 +149,10 @@ async def get_job_status(job_id: str):
 @app.get("/jobs/{job_id}/result", response_model=ResponseAugmentation)
 async def get_job_result(job_id: str):
     """Get the current result of a job"""
-    if job_id not in active_jobs:
+    if job_id not in kolosal_jobs:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    job = active_jobs[job_id]
+    job = kolosal_jobs[job_id]
     augmenter = job["augmenter"]
 
     df, metadata = augmenter.get_result()
@@ -170,10 +166,10 @@ async def get_job_result(job_id: str):
 @app.delete("/jobs/{job_id}", response_model=AugmentationJobResponse)
 async def cancel_job(job_id: str):
     """Cancel a running job"""
-    if job_id not in active_jobs:
+    if job_id not in kolosal_jobs:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    job = active_jobs[job_id]
+    job = kolosal_jobs[job_id]
     augmenter = job["augmenter"]
 
     # Cancel the job
@@ -196,29 +192,3 @@ async def cancel_job(job_id: str):
 async def health_check():
     """Health check endpoint"""
     return {"status": "ok"}
-
-
-# Helper function to clean up completed jobs
-async def cleanup_completed_jobs():
-    """Periodically clean up completed jobs"""
-    while True:
-        for job_id in list(active_jobs.keys()):
-            job = active_jobs[job_id]
-            status, _ = job["augmenter"].get_status()
-
-            # If the job is completed, mark it for cleanup
-            if status == "Finished":
-                # Keep job for 1 hour (you can adjust this)
-                job["cleanup_scheduled"] = True
-
-            # If marked for cleanup and it's been more than 1 hour, remove it
-            if job.get("cleanup_scheduled", False):
-                active_jobs.pop(job_id)
-
-        await asyncio.sleep(3600)  # Run every hour
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Start background tasks when the app starts"""
-    asyncio.create_task(cleanup_completed_jobs())
