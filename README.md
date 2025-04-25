@@ -93,5 +93,3 @@ This project is licensed under the **Apache 2.0 License**, which means you are f
 [3] [How to Generate Synthetic Data and Fine-tune a SLM that Beats GPT-4o - Predibase - Predibase](https://predibase.com/blog/how-to-generate-synthetic-data-and-fine-tune-a-slm-that-beats-gpt-4o)
 
 [4] [QLoRA: Efficient Finetuning of Quantized LLMs](https://arxiv.org/abs/2305.14314)
-
-##
