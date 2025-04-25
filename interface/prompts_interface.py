@@ -26,16 +26,16 @@ def knowledge_prompt_interface():
         "system_prompt", "")
 
     st.subheader("Prompts")
-    
+
     # Example prompts
-    if st.button("Load example prompts", key="load_example_prompts"):
+    if st.button("Load example prompts", key="load_example_prompts_knowledge"):
         st.session_state.knowledge_augmentation_config[
-                "conversation_starter_instruction"] = "Act like an Ivy Leauge students that is passionate in astronomy, generate questions that would be asked to a professor based on the given topic."
+            "conversation_starter_instruction"] = "Act like an Ivy Leauge students that is passionate in astronomy, generate questions that would be asked to a professor based on the given topic."
         st.session_state.knowledge_augmentation_config[
-                "conversation_personalization_instruction"] = "Answer the questions in a friendly manner, as if you are talking to a friend."
+            "conversation_personalization_instruction"] = "Answer the questions in a friendly manner, as if you are talking to a friend."
         st.session_state.knowledge_augmentation_config[
-                "system_prompt"] = "You are an Ivy League professor, answer the questions in a friendly manner, as if you are teaching passionatly about astronomy"
-    
+            "system_prompt"] = "You are an Ivy League professor, answer the questions in a friendly manner, as if you are teaching passionatly about astronomy"
+
     with st.form("prompts_form"):
         conversation_starter_instruction = st.text_area(
             "Conversation Starter Topic",
@@ -61,3 +61,38 @@ def knowledge_prompt_interface():
             st.session_state.knowledge_augmentation_config[
                 "conversation_personalization_instruction"] = conversation_personalization_instruction
             st.session_state.knowledge_augmentation_config["system_prompt"] = system_prompt
+
+
+def embedding_prompt_interface():
+    """
+    Streamlit interface for configuring embedding prompts in the data augmentation process.
+    This function creates a form where users can:
+    - View and edit the current instruction used for embedding-based data generation
+    - Load example prompts with a single click
+    - Update the instruction in the session state
+    The function accesses and modifies the 'embeddings_augmentation_config' dictionary 
+    in the Streamlit session state to maintain configuration persistence across reruns.
+    Returns:
+        None
+    """
+
+    # Load the current configuration from session state
+    embedding_instruction = st.session_state.embeddings_augmentation_config.get(
+        "instruction", "")
+
+    # Example prompts
+    if st.button("Load example prompts", key="load_example_prompts_embedding"):
+        st.session_state.embeddings_augmentation_config[
+            "instruction"] = "Act like an Ivy Leauge students that is passionate in astronomy, generate questions that would be asked to a professor based on the given topic."
+
+    with st.form("instruction_form"):
+        embedding_instruction = st.text_area(
+            "Data Generation Instruction",
+            value=embedding_instruction,
+            height=200,
+            key="instruction_form"
+        )
+
+        if st.form_submit_button("Update Prompts"):
+            st.session_state.embeddings_augmentation_config[
+                "instruction"] = embedding_instruction

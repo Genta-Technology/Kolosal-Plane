@@ -5,7 +5,28 @@ import json
 from api.api_helper import get_job_status, get_job_result, cancel_job, health_check
 
 
-def knowledge_augmentation_status_interface():
+def augmentation_status_interface():
+    """
+    Creates a streamlined interface for tracking and managing data augmentation jobs.
+    This function displays a UI for managing data augmentation jobs through the following features:
+    - Setting/clearing job IDs manually
+    - Monitoring job status and progress
+    - Retrieving and downloading job results
+    - Controlling jobs (cancellation)
+    - Checking API health
+    The interface consists of four tabs:
+    1. Job Status: Shows the current status and progress of the job
+    2. Job Result: Retrieves, displays, and allows downloading of job results
+    3. Job Control: Provides options to cancel running jobs
+    4. API Health: Checks if the underlying API service is operational
+    Returns:
+        None: The function updates the Streamlit UI but doesn't return any values
+    Note:
+        - Requires a valid job_id to be present in the session state
+        - Depends on external functions: get_job_status(), get_job_result(), 
+          cancel_job(), and health_check()
+    """
+    
     # Add job ID manually
     st.subheader("Job Management")
     manual_job_id = st.text_input(
@@ -17,7 +38,7 @@ def knowledge_augmentation_status_interface():
             st.success(f"Job ID set to: {manual_job_id}")
         else:
             st.error("Please enter a valid Job ID")
-    
+
     if st.button("Clear Job ID"):
         st.session_state.job_id = None
 
@@ -29,7 +50,6 @@ def knowledge_augmentation_status_interface():
         st.warning(
             "No job ID found. Please start a job or enter a job ID manually.")
         return
-    
 
     # Create tabs for different functions
     tab1, tab2, tab3, tab4 = st.tabs(
@@ -83,12 +103,9 @@ def knowledge_augmentation_status_interface():
 
                     # Show preview of first few rows
                     if rows:
-                        st.subheader("Preview (First 5 Rows)")
-                        st.dataframe(rows[:5])
+                        st.subheader("Preview")
+                        st.dataframe(rows)
 
-                    # JSON view toggle
-                    if st.checkbox("View Full JSON"):
-                        st.json(result_data)
                 else:
                     st.warning("No dataset rows found in the result")
 
@@ -97,6 +114,17 @@ def knowledge_augmentation_status_interface():
                     st.subheader("Metadata")
                     for key, value in result_data["metadata"].items():
                         st.write(f"{key.replace('_', ' ').title()}: {value}")
+
+                # Download button for the generated dataset
+                if "generated_dataset" in result_data:
+                    st.subheader("Download Generated Dataset")
+                    json_data = json.dumps(result_data["generated_dataset"])
+                    st.download_button(
+                        label="Download JSON",
+                        data=json_data,
+                        file_name="generated_dataset.json",
+                        mime="application/json"
+                    )
 
             except Exception as e:
                 st.error(f"Error retrieving job result: {str(e)}")

@@ -70,6 +70,9 @@ def documents_interface():
             # Update the main documents dataframe
             st.session_state.knowledge_augmentation_config["documents"] = edited_df["Documents"].to_list(
             )
+            
+            st.session_state.embeddings_augmentation_config["documents"] = edited_df["Documents"].to_list(
+            )
 
             st.success("Document changes saved successfully!")
         else:

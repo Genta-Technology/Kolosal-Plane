@@ -1,60 +1,46 @@
 """UI Kolosal Knowledge Augmentation"""
 import streamlit as st
-import pandas as pd
 
-from interface.model_config import model_config_interface
-from interface.documents_interface import documents_interface
 from interface.prompts_interface import knowledge_prompt_interface
 from interface.configuration_interface import knowledge_configuration_interface
 from interface.augmentation_interface import knowledge_augmentation_interface
-from interface.status_interface import knowledge_augmentation_status_interface
 
 # API endpoint configuration
 API_BASE_URL = "http://localhost:8000"
 
-# The UI is seperated to 6 slides
-# 1. Setup the LLM provider and parameters
-# 2. Upload the documents to be augmented
-# 3. Configure the augmentation prompts
-# 4. Configure the augmentation parameters
-# 5. Start the augmentation process
-# 6. Monitor the augmentation
+# The UI is seperated to 3 slides
+# 1. Configure the augmentation prompts
+# 2. Configure the augmentation parameters
+# 3. Start the augmentation process
 
 
-total_slides = 6
+total_slides = 3
 
 
 def augmentation_interface():
     if st.session_state.knowledge_slide == 1:
-        model_config_interface()
+        knowledge_prompt_interface()
 
     elif st.session_state.knowledge_slide == 2:
-        documents_interface()
+        knowledge_configuration_interface()
 
     elif st.session_state.knowledge_slide == 3:
-        knowledge_prompt_interface()
-        
-    elif st.session_state.knowledge_slide == 4:
-        knowledge_configuration_interface()
-    
-    elif st.session_state.knowledge_slide == 5:
         knowledge_augmentation_interface()
-    
-    elif st.session_state.knowledge_slide == 6:
-        knowledge_augmentation_status_interface()
 
     # Display navigation controls
     col1, col2, col3 = st.columns([1, 3, 1])
 
     with col1:
         if st.session_state.knowledge_slide > 1:
-            if st.button("← Previous"):
+            if st.button(label="← Previous",
+                         key="prev_knowledge_slide"):
                 st.session_state.knowledge_slide -= 1
                 st.rerun()
 
     with col3:
         if st.session_state.knowledge_slide < total_slides:
-            if st.button("Next →"):
+            if st.button(label="Next →",
+                         key="next_knowledge_slide"):
                 st.session_state.knowledge_slide += 1
                 st.rerun()
 
