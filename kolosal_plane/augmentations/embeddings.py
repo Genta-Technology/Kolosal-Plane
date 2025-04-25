@@ -90,6 +90,12 @@ class AsyncEmbeddingAugmentation(EmbeddingAugmentation):
         self._metadata: Dict[str, int] = {"input_token_count": 0, "output_token_count": 0}
         self._status: str = "Not started"
         self._task: asyncio.Task = None
+        self._lock = asyncio.Lock()  # Add lock for thread safety
+
+    async def _run_sync_function(self, func, *args, **kwargs):
+        """Helper method to run synchronous functions in the running event loop"""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, lambda: func(*args, **kwargs))
 
     async def augmentate_async(self) -> Tuple[pl.DataFrame, Dict[str, int]]:
         """
@@ -99,41 +105,54 @@ class AsyncEmbeddingAugmentation(EmbeddingAugmentation):
         Returns:
             Tuple containing the augmented polars DataFrame and a metadata dictionary.
         """
-        self._status = "Running"
+        try:
+            self._status = "Running"
 
-        # Initialize the SelfInstruct generator and load its resources.
-        generator = SelfInstruct(
-            llm=self.lm,
-            num_instructions=self.batch_size
-        )
-        # If load() is blocking, consider running it in a thread.
-        await asyncio.to_thread(generator.load)
+            # Initialize the SelfInstruct generator and load its resources.
+            generator = SelfInstruct(
+                llm=self.lm,
+                num_instructions=self.batch_size
+            )
+            # Run load() in a thread to avoid blocking
+            await self._run_sync_function(generator.load)
 
-        for document in tqdm(self.documents, desc="Augmenting documents"):
-            await asyncio.sleep(0)  # Yield control
-            built_instruction = self.build_instruction(document)
-            batch_count = int(self.question_per_document / self.batch_size)
-            inputs = [{"input": built_instruction}] * batch_count
+            for document in tqdm(self.documents, desc="Augmenting documents"):
+                await asyncio.sleep(0)  # Yield control
+                built_instruction = self.build_instruction(document)
+                batch_count = int(self.question_per_document / self.batch_size)
+                inputs = [{"input": built_instruction}] * batch_count
 
-            # Wrap the blocking generator call in a thread to avoid blocking the event loop.
-            result = await asyncio.to_thread(lambda: next(generator.process(inputs)))
+                # Run the generator in a thread to avoid event loop conflicts
+                result = await self._run_sync_function(lambda: next(generator.process(inputs)))
 
-            self._metadata["input_token_count"] += sum(
-                res.get("distilabel_metadata", {}).get("statistics_self_instruct_0", {}).get("input_tokens", 0)
-                for res in result)
-            self._metadata["output_token_count"] += sum(
-                res.get("distilabel_metadata", {}).get("statistics_self_instruct_0", {}).get("output_tokens", 0)
-                for res in result)
+                # Update metadata with token counts (thread-safe)
+                async with self._lock:
+                    self._metadata["input_token_count"] += sum(
+                        res.get("distilabel_metadata", {}).get("statistics_self_instruct_0", {}).get("input_tokens", 0)
+                        for res in result)
+                    self._metadata["output_token_count"] += sum(
+                        res.get("distilabel_metadata", {}).get("statistics_self_instruct_0", {}).get("output_tokens", 0)
+                        for res in result)
 
-            questions = [instruction for res in result for instruction in res.get("instructions", [])]
-            new_rows = pl.DataFrame({
-                "question": questions,
-                "document": [document] * len(questions)
-            })
-            self._augmented_data = pl.concat([self._augmented_data, new_rows], how="vertical")
+                questions = [instruction for res in result for instruction in res.get("instructions", [])]
+                new_rows = pl.DataFrame({
+                    "question": questions,
+                    "document": [document] * len(questions)
+                })
+                
+                # Thread-safe update of the augmented data
+                async with self._lock:
+                    self._augmented_data = pl.concat([self._augmented_data, new_rows], how="vertical")
 
-        self._status = "Finished"
-        return self._augmented_data, self._metadata
+            self._status = "Finished"
+            return self._augmented_data, self._metadata
+            
+        except asyncio.CancelledError:
+            self._status = "Cancelled"
+            raise
+        except Exception as e:
+            self._status = f"Failed: {str(e)}"
+            raise
 
     def start_augmentation(self) -> asyncio.Task:
         """
@@ -163,3 +182,7 @@ class AsyncEmbeddingAugmentation(EmbeddingAugmentation):
         Returns the current status of the augmentation process along with metadata.
         """
         return self._status, self._metadata
+
+    def is_running(self) -> bool:
+        """Check if the augmentation task is currently running"""
+        return self._task is not None and not self._task.done() and self._status == "Running"
