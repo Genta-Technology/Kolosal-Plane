@@ -8,8 +8,8 @@ from tqdm import tqdm
 from distilabel.models.llms.base import AsyncLLM
 from distilabel.steps.tasks import SelfInstruct
 
-from kolosal_plane.augmentations.augmentation import Augmentation
-from kolosal_plane.augmentations.prompt.personalization_prompt import NEXT_QUESTION_PROMPT
+from .augmentation import Augmentation
+from .prompt.personalization_prompt import NEXT_QUESTION_PROMPT
 
 
 class Personalization(Augmentation):

@@ -6,7 +6,7 @@ import polars as pl
 from tqdm import tqdm
 from tqdm.asyncio import tqdm_asyncio
 
-from kolosal_plane.augmentations.knowledge import Knowledge
+from .knowledge import Knowledge
 
 
 class SimpleKnowledge(Knowledge):

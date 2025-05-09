@@ -9,8 +9,8 @@ from tqdm import tqdm
 from distilabel.models.llms.base import AsyncLLM
 from distilabel.steps.tasks import SelfInstruct
 
-from kolosal_plane.augmentations.augmentation import Augmentation
-from kolosal_plane.augmentations.prompt.knowledge_prompt import CONVERSATION_STARTER_PROMPT, CONVERSATION_PROMPT, NEXT_QUESTION_SAME_TOPIC_PROMPT, NEXT_QUESTION_DIFFERENT_TOPIC_PROMPT
+from .augmentation import Augmentation
+from .prompt.knowledge_prompt import CONVERSATION_STARTER_PROMPT, CONVERSATION_PROMPT, NEXT_QUESTION_SAME_TOPIC_PROMPT, NEXT_QUESTION_DIFFERENT_TOPIC_PROMPT
 
 
 class Knowledge(Augmentation):
