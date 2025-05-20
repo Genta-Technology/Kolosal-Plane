@@ -62,7 +62,8 @@ async def start_embedding_augmentation(request: RequestEmbeddingAugmentation):
     # Create augmentation instance
     augmentation = AsyncEmbeddingAugmentation(
         documents=request.documents,
-        instruction=request.instruction,
+        instruction_positive=request.instruction_positive,
+        instruction_negative=request.instruction_negative,
         lm=llm,
         question_per_document=request.question_per_document,
         batch_size=request.batch_size

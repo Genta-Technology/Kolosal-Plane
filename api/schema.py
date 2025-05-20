@@ -18,7 +18,8 @@ class LLMConfiguration(BaseModel):
 class RequestEmbeddingAugmentation(BaseModel):
     """Request start augmentation of knowledge based dataset augmentation"""
     documents: List[str]
-    instruction: str
+    instruction_positive: str
+    instruction_negative: str
     question_per_document: Optional[int] = 100
     batch_size: Optional[int] = 10
     llm_config: LLMConfiguration
