@@ -10,20 +10,23 @@ from distilabel.steps.tasks import SelfInstruct
 
 class EmbeddingAugmentation():
     documents: List[str]
-    instruction: str
+    instruction_positive: str
+    instruction_negative: str
     lm: AsyncLLM
     question_per_document: int
     batch_size: int
 
     def __init__(self,
                  documents: List[str],
-                 instruction: str,
+                 instruction_positive: str,
+                 instruction_negative: str,
                  lm: AsyncLLM,
                  question_per_document: int = 10,
                  batch_size: int = 10
                  ):
         self.documents = documents
-        self.instruction = instruction
+        self.instruction_positive = instruction_positive
+        self.instruction_negative = instruction_negative
         self.lm = lm
         self.question_per_document = question_per_document
         self.batch_size = batch_size
@@ -53,35 +56,107 @@ class EmbeddingAugmentation():
 
         # Generate data for each document
         for document in tqdm(self.documents, desc="Augmenting documents"):
-            built_instruction = self.build_instruction(document)
-            # Generate related questions in batches for this document
             batch_count = int(self.question_per_document / self.batch_size)
+
+            # Generate related questions in batches for this document
+            built_positive_instruction = self.build_positive_instruction(
+                document)
+
             result = next(generator.process(
-                [{"input": built_instruction}] * batch_count))
+                [{"input": built_positive_instruction}] * batch_count))
             input_token_count += sum(
-                res.get("distilabel_metadata", {}).get("statistics_self_instruct_0", {}).get("input_tokens", 0)
+                res.get("distilabel_metadata", {}).get(
+                    "statistics_self_instruct_0", {}).get("input_tokens", 0)
                 for res in result)
             output_token_count += sum(
-                res.get("distilabel_metadata", {}).get("statistics_self_instruct_0", {}).get("output_tokens", 0)
+                res.get("distilabel_metadata", {}).get(
+                    "statistics_self_instruct_0", {}).get("output_tokens", 0)
                 for res in result)
 
-            questions = [instruction for res in result for instruction in res.get("instructions", [])]
-            
+            questions_positive = [
+                instruction for res in result for instruction in res.get("instructions", [])]
+
             # Generate unrelated questions in batches for this document
-            # TODO: Implement unrelated question generation
+            built_negative_instruction = self.build_negative_instruction(
+                document)
+
+            result = next(generator.process(
+                [{"input": built_negative_instruction}] * batch_count))
+            input_token_count += sum(
+                res.get("distilabel_metadata", {}).get(
+                    "statistics_self_instruct_0", {}).get("input_tokens", 0)
+                for res in result)
+            output_token_count += sum(
+                res.get("distilabel_metadata", {}).get(
+                    "statistics_self_instruct_0", {}).get("output_tokens", 0)
+                for res in result)
+
+            questions_negative = [
+                instruction for res in result for instruction in res.get("instructions", [])]
+
+            # Add the additional rows to the augmented data
             new_rows = pl.DataFrame({
-                "question": questions,
-                "document": [document] * len(questions)
+                "question_positive": questions_positive,
+                "question_negative": questions_negative,
+                "document": [document] * len(questions_positive)
             })
-            augmented_data = pl.concat([augmented_data, new_rows], how="vertical")
+            augmented_data = pl.concat(
+                [augmented_data, new_rows], how="vertical")
 
         metadata = {"input_token_count": input_token_count,
                     "output_token_count": output_token_count}
         return augmented_data, metadata
 
-    def build_instruction(self, document: str) -> str:
+    def build_positive_instruction(self, document: str) -> str:
+        """
+        Build a positive instruction by applying a template to a document.
+        This method constructs a complete instruction for positive examples by combining
+        the positive instruction template with the provided document.
+        Parameters
+        ----------
+        document : str
+            The document text to be incorporated into the instruction.
+        Returns
+        -------
+        str
+            The complete positive instruction with the document integrated into it.
+        See Also
+        --------
+        build_instruction : The base method used for constructing instructions.
+        """
+
+        return self.build_instruction(self.instruction_positive, document)
+
+    def build_negative_instruction(self, document: str) -> str:
+        """
+        Builds a negative instruction by applying the negative instruction template to the provided document.
+        This method creates a formatted instruction using the negative template stored in `self.instruction_negative`
+        and the given document content.
+        Args:
+            document (str): The document content to include in the negative instruction.
+        Returns:
+            str: The formatted negative instruction string.
+        """
+
+        return self.build_instruction(self.instruction_negative, document)
+
+    def build_instruction(self, instruction: str, document: str) -> str:
+        """
+        Builds an instruction by combining an instruction prompt with a document content.
+        This method concatenates the instruction and document strings with a space in between.
+        Useful for formatting inputs to language models or other text processing systems.
+        Args:
+            instruction (str): The instruction or prompt to be included.
+            document (str): The document or content text to be processed.
+        Returns:
+            str: A combined string containing the instruction followed by the document.
+        Example:
+            >>> build_instruction("Summarize the following:", "This is a long text...")
+            "Summarize the following: This is a long text..."
+        """
+
         # TODO: Customize the instruction builder as needed.
-        return f"{self.instruction} {document}"
+        return f"{instruction} {document}"
 
 
 class AsyncEmbeddingAugmentation(EmbeddingAugmentation):
@@ -90,7 +165,8 @@ class AsyncEmbeddingAugmentation(EmbeddingAugmentation):
         # Prepare an empty DataFrame with the appropriate schema.
         self._augmented_data: pl.DataFrame = pl.DataFrame(
             schema={"question": pl.Utf8, "document": pl.Utf8})
-        self._metadata: Dict[str, int] = {"input_token_count": 0, "output_token_count": 0}
+        self._metadata: Dict[str, int] = {
+            "input_token_count": 0, "output_token_count": 0}
         self._status: str = "Not started"
         self._task: asyncio.Task = None
         self._lock = asyncio.Lock()  # Add lock for thread safety
@@ -121,9 +197,13 @@ class AsyncEmbeddingAugmentation(EmbeddingAugmentation):
 
             for document in tqdm(self.documents, desc="Augmenting documents"):
                 await asyncio.sleep(0)  # Yield control
-                built_instruction = self.build_instruction(document)
                 batch_count = int(self.question_per_document / self.batch_size)
-                inputs = [{"input": built_instruction}] * batch_count
+
+                # Generate related questions in batches for this document
+                built_positive_instruction = self.build_positive_instruction(
+                    document)
+
+                inputs = [{"input": built_positive_instruction}] * batch_count
 
                 # Run the generator in a thread to avoid event loop conflicts
                 result = await self._run_sync_function(lambda: next(generator.process(inputs)))
@@ -131,25 +211,54 @@ class AsyncEmbeddingAugmentation(EmbeddingAugmentation):
                 # Update metadata with token counts (thread-safe)
                 async with self._lock:
                     self._metadata["input_token_count"] += sum(
-                        res.get("distilabel_metadata", {}).get("statistics_self_instruct_0", {}).get("input_tokens", 0)
+                        res.get("distilabel_metadata", {}).get(
+                            "statistics_self_instruct_0", {}).get("input_tokens", 0)
                         for res in result)
                     self._metadata["output_token_count"] += sum(
-                        res.get("distilabel_metadata", {}).get("statistics_self_instruct_0", {}).get("output_tokens", 0)
+                        res.get("distilabel_metadata", {}).get(
+                            "statistics_self_instruct_0", {}).get("output_tokens", 0)
                         for res in result)
 
-                questions = [instruction for res in result for instruction in res.get("instructions", [])]
+                questions_positive = [instruction for res in result for instruction in res.get(
+                    "instructions", [])]
+
+                # Generate unrelated questions in batches for this document
+                built_negative_instruction = self.build_negative_instruction(
+                    document)
+
+                inputs = [{"input": built_negative_instruction}] * batch_count
+
+                # Run the generator in a thread to avoid event loop conflicts
+                result = await self._run_sync_function(lambda: next(generator.process(inputs)))
+
+                # Update metadata with token counts (thread-safe)
+                async with self._lock:
+                    self._metadata["input_token_count"] += sum(
+                        res.get("distilabel_metadata", {}).get(
+                            "statistics_self_instruct_0", {}).get("input_tokens", 0)
+                        for res in result)
+                    self._metadata["output_token_count"] += sum(
+                        res.get("distilabel_metadata", {}).get(
+                            "statistics_self_instruct_0", {}).get("output_tokens", 0)
+                        for res in result)
+
+                questions_negative = [instruction for res in result for instruction in res.get(
+                    "instructions", [])]
+
                 new_rows = pl.DataFrame({
-                    "question": questions,
-                    "document": [document] * len(questions)
+                    "question_positive": questions_positive,
+                    "question_negative": questions_negative,
+                    "document": [document] * len(questions_positive)
                 })
-                
+
                 # Thread-safe update of the augmented data
                 async with self._lock:
-                    self._augmented_data = pl.concat([self._augmented_data, new_rows], how="vertical")
+                    self._augmented_data = pl.concat(
+                        [self._augmented_data, new_rows], how="vertical")
 
             self._status = "Finished"
             return self._augmented_data, self._metadata
-            
+
         except asyncio.CancelledError:
             self._status = "Cancelled"
             raise
