@@ -11,7 +11,8 @@ HEADERS = {"Content-Type": "application/json"}
 
 def start_embedding_augmentation(
     documents: List[str],
-    instruction: str,
+    instruction_positive: str,
+    instruction_negative: str,
     llm_config: Dict[str, Any],
     question_per_document: int = 100,
     batch_size: int = 10,
@@ -22,7 +23,8 @@ def start_embedding_augmentation(
     url: str = f"{BASE_URL}/embedding-augmentation"
     payload: Dict[str, Any] = {
         "documents": documents,
-        "instruction": instruction,
+        "instruction_positive": instruction_positive,
+        "instruction_negative": instruction_negative,
         "question_per_document": question_per_document,
         "batch_size": batch_size,
         "llm_config": llm_config,
