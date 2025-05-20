@@ -54,7 +54,7 @@ class EmbeddingAugmentation():
         # Generate data for each document
         for document in tqdm(self.documents, desc="Augmenting documents"):
             built_instruction = self.build_instruction(document)
-            # Generate questions in batches for this document
+            # Generate related questions in batches for this document
             batch_count = int(self.question_per_document / self.batch_size)
             result = next(generator.process(
                 [{"input": built_instruction}] * batch_count))
@@ -66,6 +66,9 @@ class EmbeddingAugmentation():
                 for res in result)
 
             questions = [instruction for res in result for instruction in res.get("instructions", [])]
+            
+            # Generate unrelated questions in batches for this document
+            # TODO: Implement unrelated question generation
             new_rows = pl.DataFrame({
                 "question": questions,
                 "document": [document] * len(questions)
