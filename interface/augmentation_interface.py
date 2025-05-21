@@ -98,7 +98,8 @@ def embedding_augmentation_interface():
             # Request the API
             response = start_embedding_augmentation(
                 documents=payload["documents"],
-                instruction=payload["instruction"],
+                instruction_positive=payload["positive_instruction"],
+                instruction_negative=payload["negative_instruction"],
                 question_per_document=payload["question_per_document"],
                 llm_config=payload["llm_config"],
                 batch_size=payload["batch_size"]
@@ -200,7 +201,8 @@ def validate_embedding_payload(payload: dict) -> bool:
 
     # Check other fields are not None or empty strings
     required_fields = [
-        "instruction",
+        "positive_instruction",
+        "negative_instruction",
         "question_per_document",
         "batch_size"
     ]

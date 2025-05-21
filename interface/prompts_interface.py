@@ -77,22 +77,36 @@ def embedding_prompt_interface():
     """
 
     # Load the current configuration from session state
-    embedding_instruction = st.session_state.embeddings_augmentation_config.get(
-        "instruction", "")
+    embedding_positive_instruction = st.session_state.embeddings_augmentation_config.get(
+        "positive_instruction", "")
+    
+    embedding_negative_instruction = st.session_state.embeddings_augmentation_config.get(
+        "negative_instruction", "")
 
     # Example prompts
     if st.button("Load example prompts", key="load_example_prompts_embedding"):
         st.session_state.embeddings_augmentation_config[
-            "instruction"] = "Act like an Ivy Leauge students that is passionate in astronomy, generate questions that would be asked to a professor based on the given topic."
+            "positive_instruction"] = "Act like an Ivy Leauge students that is passionate in astronomy, generate questions that would be asked to a professor based on the given topic."
+        st.session_state.embeddings_augmentation_config[
+            "negative_instruction"] = "Act like an average internet user. Generate casual or random questions that are not related to the given topic in any way."
 
-    with st.form("instruction_form"):
-        embedding_instruction = st.text_area(
+    with st.form("positive_instruction_form"):
+        embedding_positive_instruction = st.text_area(
             "Data Generation Instruction",
-            value=embedding_instruction,
+            value=embedding_positive_instruction,
             height=200,
-            key="instruction_form"
+            key="positive_instruction_form"
+        )
+        
+        embedding_negative_instruction = st.text_area(
+            "Negative Instruction",
+            value=embedding_negative_instruction,
+            height=200,
+            key="negative_instruction_form"
         )
 
         if st.form_submit_button("Update Prompts"):
             st.session_state.embeddings_augmentation_config[
-                "instruction"] = embedding_instruction
+                "positive_instruction"] = embedding_positive_instruction
+            st.session_state.embeddings_augmentation_config[
+                "negative_instruction"] = embedding_negative_instruction

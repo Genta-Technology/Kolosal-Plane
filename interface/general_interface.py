@@ -8,7 +8,7 @@ from interface.documents_interface import documents_interface
 # 1. Configure the LLM
 # 2. Configure the Documents
 
-total_slides = 3
+total_slides = 2
 
 
 def general_interface():
