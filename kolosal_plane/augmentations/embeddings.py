@@ -97,10 +97,16 @@ class EmbeddingAugmentation():
                 instruction for res in result for instruction in res.get("instructions", [])]
 
             # Add the additional rows to the augmented data
+            # Ensure both lists are of the same length
+            min_len = min(len(questions_positive), len(questions_negative))
+
+            questions_positive = questions_positive[:min_len]
+            questions_negative = questions_negative[:min_len]
+            
             new_rows = pl.DataFrame({
                 "question_positive": questions_positive,
                 "question_negative": questions_negative,
-                "document": [document] * len(questions_positive)
+                "document": [document] * min_len
             })
             augmented_data = pl.concat(
                 [augmented_data, new_rows], how="vertical")
@@ -248,11 +254,17 @@ class AsyncEmbeddingAugmentation(EmbeddingAugmentation):
 
                 questions_negative = [instruction for res in result for instruction in res.get(
                     "instructions", [])]
+                
+                # Ensure both lists are of the same length
+                min_len = min(len(questions_positive), len(questions_negative))
 
+                questions_positive = questions_positive[:min_len]
+                questions_negative = questions_negative[:min_len]
+                
                 new_rows = pl.DataFrame({
                     "question_positive": questions_positive,
                     "question_negative": questions_negative,
-                    "document": [document] * len(questions_positive)
+                    "document": [document] * min_len
                 })
 
                 # Thread-safe update of the augmented data
