@@ -45,7 +45,9 @@ class EmbeddingAugmentation():
         output_token_count = 0
 
         augmented_data = pl.DataFrame(
-            schema={"question": pl.Utf8, "document": pl.Utf8})
+            schema={"question_positive": pl.Utf8, 
+                    "question_negative": pl.Utf8,
+                    "document": pl.Utf8})
 
         # Initiate the SelfInstruct instance
         generator = SelfInstruct(
