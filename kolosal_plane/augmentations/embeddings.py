@@ -45,7 +45,7 @@ class EmbeddingAugmentation():
         output_token_count = 0
 
         augmented_data = pl.DataFrame(
-            schema={"question_positive": pl.Utf8, 
+            schema={"question_positive": pl.Utf8,
                     "question_negative": pl.Utf8,
                     "document": pl.Utf8})
 
@@ -166,7 +166,9 @@ class AsyncEmbeddingAugmentation(EmbeddingAugmentation):
         super().__init__(*args, **kwargs)
         # Prepare an empty DataFrame with the appropriate schema.
         self._augmented_data: pl.DataFrame = pl.DataFrame(
-            schema={"question": pl.Utf8, "document": pl.Utf8})
+            schema={"question_positive": pl.Utf8,
+                    "question_negative": pl.Utf8,
+                    "document": pl.Utf8})
         self._metadata: Dict[str, int] = {
             "input_token_count": 0, "output_token_count": 0}
         self._status: str = "Not started"
